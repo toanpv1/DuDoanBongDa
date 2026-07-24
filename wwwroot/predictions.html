@@ -114,7 +114,7 @@
                         <option value="unpredicted">Chưa dự đoán (Còn hạn)</option>
                         <option value="missed">Bỏ lỡ (Hết hạn)</option>
                     </select>
-                    <select class="form-select" id="roundFilter" style="width:180px" onchange="loadMatches()">
+                    <select class="form-select" id="roundFilter" style="width:180px" onchange="applyFilters()">
                         <option value="">Tất cả vòng</option>
                     </select>
                 </div>
@@ -137,23 +137,24 @@
         let allMatches = [];
         async function loadMatches() {
             const tid = getActiveTournamentId();
-            const roundId = document.getElementById('roundFilter').value;
-            let url = `/api/match?tournamentId=${tid}`;
-            if (roundId) url += `&roundId=${roundId}`;
-
             try {
-                allMatches = await Api.get(url);
+                allMatches = await Api.get(`/api/match?tournamentId=${tid}`) || [];
                 applyFilters();
             } catch (err) { showToast('Lỗi tải trận đấu', 'error'); }
         }
 
         function applyFilters() {
             const predFilter = document.getElementById('predFilter').value;
+            const roundId = document.getElementById('roundFilter').value;
+            
             let filteredMatches = allMatches;
+            if (roundId) {
+                filteredMatches = filteredMatches.filter(m => m.roundId == roundId);
+            }
             if (predFilter === 'unpredicted') {
-                filteredMatches = allMatches.filter(m => !m.myPrediction && m.isPredictionOpen);
+                filteredMatches = filteredMatches.filter(m => !m.myPrediction && m.isPredictionOpen);
             } else if (predFilter === 'missed') {
-                filteredMatches = allMatches.filter(m => !m.myPrediction && !m.isPredictionOpen);
+                filteredMatches = filteredMatches.filter(m => !m.myPrediction && !m.isPredictionOpen);
             }
 
             const container = document.getElementById('matchesList');

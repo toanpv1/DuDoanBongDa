@@ -90,11 +90,13 @@ namespace WorldCupPredictor.Services
         public async Task<List<LeaderboardEntry>> GetLeaderboardAsync(int tournamentId)
         {
             var members = await _db.TournamentMembers
+                .AsNoTracking()
                 .Include(tm => tm.User)
                 .Where(tm => tm.TournamentId == tournamentId)
                 .ToListAsync();
 
             var completedMatches = await _db.Matches
+                .AsNoTracking()
                 .Where(m => m.TournamentId == tournamentId && m.Status == "Completed")
                 .Select(m => m.Id)
                 .ToListAsync();
@@ -102,6 +104,7 @@ namespace WorldCupPredictor.Services
             var totalCompleted = completedMatches.Count;
 
             var allPredictions = await _db.Predictions
+                .AsNoTracking()
                 .Where(p => completedMatches.Contains(p.MatchId))
                 .ToListAsync();
 
