@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thống kê - Predictor</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('statistics') + `
+        <main class="main-content">
+            <div class="page-header"><div><h1 class="page-title">📈 Thống kê cá nhân</h1><p class="page-subtitle">Chi tiết hiệu suất dự đoán của bạn</p></div></div>
+            <div class="stats-grid" id="statsCards"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
+                <div class="card"><div class="card-header"><h3 class="card-title">📊 Tổng quan</h3></div><canvas id="pieChart" height="250"></canvas></div>
+                <div class="card"><div class="card-header"><h3 class="card-title">📈 Theo vòng đấu</h3></div><canvas id="barChart" height="250"></canvas></div>
+            </div>
+            <div class="card" style="margin-top:20px">
+                <div class="card-header"><h3 class="card-title">📋 Kết quả gần đây</h3></div>
+                <div id="recentList"></div>
+            </div>
+        </main>`;
+
+        loadStats();
+
+        async function loadStats() {
+            try {
+                const tid = getActiveTournamentId();
+                const stats = await Api.get(`/api/leaderboard/my-stats/${tid}`);
+
+                document.getElementById('statsCards').innerHTML = `
+                    <div class="stat-card"><div class="stat-icon purple">🏆</div><div><div class="stat-value">${stats.totalPoints}</div><div class="stat-label">Tổng điểm</div></div></div>
+                    <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value">${stats.correctPredictions}</div><div class="stat-label">Đúng</div></div></div>
+                    <div class="stat-card"><div class="stat-icon red">❌</div><div><div class="stat-value">${stats.wrongPredictions}</div><div class="stat-label">Sai</div></div></div>
+                    <div class="stat-card"><div class="stat-icon yellow">📊</div><div><div class="stat-value">${stats.accuracy}%</div><div class="stat-label">Tỷ lệ</div></div></div>
+                `;
+
+                // Pie Chart
+                new Chart(document.getElementById('pieChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Đúng', 'Sai', 'Bỏ lỡ'],
+                        datasets: [{ data: [stats.correctPredictions, stats.wrongPredictions, stats.missedPredictions],
+                            backgroundColor: ['#10b981', '#ef4444', '#64748b'], borderWidth: 0 }]
+                    },
+                    options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+                });
+
+                // Bar Chart by round
+                if (stats.roundBreakdown && stats.roundBreakdown.length > 0) {
+                    new Chart(document.getElementById('barChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: stats.roundBreakdown.map(r => r.roundName),
+                            datasets: [
+                                { label: 'Đúng', data: stats.roundBreakdown.map(r => r.correct), backgroundColor: '#10b981' },
+                                { label: 'Sai', data: stats.roundBreakdown.map(r => r.wrong), backgroundColor: '#ef4444' }
+                            ]
+                        },
+                        options: { responsive: true, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' }, beginAtZero: true } }, plugins: { legend: { labels: { color: '#94a3b8' } } } }
+                    });
+                }
+
+                // Recent
+                const recentDiv = document.getElementById('recentList');
+                if (stats.recentPredictions && stats.recentPredictions.length > 0) {
+                    recentDiv.innerHTML = `<div class="table-wrapper"><table>
+                        <thead><tr><th>Trận</th><th>Vòng</th><th>Kết quả</th><th>Dự đoán</th><th>Kết quả</th></tr></thead>
+                        <tbody>${stats.recentPredictions.map(p => `<tr>
+                            <td>${p.homeFlag||''} ${p.homeTeam} vs ${p.awayTeam} ${p.awayFlag||''}</td>
+                            <td><span class="match-round">${p.roundName}</span></td>
+                            <td style="font-weight:700">${p.actualHomeScore ?? '?'} - ${p.actualAwayScore ?? '?'}</td>
+                            <td>${p.predictedHomeScore != null 
+                                ? p.predictedHomeScore + ' - ' + p.predictedAwayScore 
+                                : (p.predictedResult === 'Home' ? '🏆 ' + p.homeTeam + ' thắng' 
+                                 : p.predictedResult === 'Away' ? '🏆 ' + p.awayTeam + ' thắng' 
+                                 : p.predictedResult === 'Draw' ? '🤝 Hòa' : '—')}</td>
+                            <td>${(() => {
+                                if (p.isCorrect == null) return '<span class="badge badge-pending">⏳</span>';
+                                const n = p.pointsEarned;
+                                return p.isCorrect
+                                    ? `<span class="badge badge-correct">✅ +${n}đ</span>`
+                                    : `<span class="badge badge-wrong">❌ ${n}đ</span>`;
+                            })()}</td>
+                        </tr>`).join('')}</tbody></table></div>`;
+                } else {
+                    recentDiv.innerHTML = '<div class="empty-state"><p class="empty-text">Chưa có dự đoán nào</p></div>';
+                }
+            } catch (err) { showToast('Lỗi tải thống kê', 'error'); }
+        }
+    </script>
+</body>
+</html>

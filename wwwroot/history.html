@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử - Predictor</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+        if (Api.isAdmin()) {
+            window.location.href = '/index.html';
+            throw 'redirect';
+        }
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('history') + `
+        <main class="main-content">
+            <div class="page-header"><div><h1 class="page-title">📋 Lịch sử dự đoán</h1><p class="page-subtitle">Toàn bộ dự đoán của bạn</p></div></div>
+            <div style="margin-bottom:12px"><input type="text" class="form-input" id="searchBox" placeholder="🔍 Tìm theo tên đội..." oninput="filterHistory()"></div>
+            <div class="card"><div id="historyList"><div class="loading-overlay"><div class="spinner"></div></div></div></div>
+        </main>`;
+
+        loadHistory();
+
+        let allHistory = [];
+        async function loadHistory() {
+            try {
+                const tid = getActiveTournamentId();
+                allHistory = await Api.get(`/api/prediction/my?tournamentId=${tid}`) || [];
+                filterHistory();
+            } catch (err) { showToast('Lỗi tải lịch sử', 'error'); }
+        }
+        function filterHistory() {
+            const q = (document.getElementById('searchBox')?.value || '').toLowerCase();
+            const data = allHistory.filter(p => !q || p.homeTeam.toLowerCase().includes(q) || p.awayTeam.toLowerCase().includes(q));
+            const container = document.getElementById('historyList');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p class="empty-text">Không tìm thấy</p></div>';
+                return;
+            }
+            container.innerHTML = `<div class="table-wrapper"><table>
+                <thead><tr><th>Ngày</th><th>Vòng</th><th>Trận đấu</th><th>Kết quả thực</th><th>Dự đoán</th><th>Kết quả</th></tr></thead>
+                <tbody>${data.map(p => `<tr>
+                    <td>${formatDateTime(p.matchDate)}</td>
+                    <td><span class="match-round">${p.roundName}</span></td>
+                    <td>${p.homeFlag||''} ${p.homeTeam} vs ${p.awayTeam} ${p.awayFlag||''}</td>
+                    <td style="font-weight:700">${p.actualHomeScore != null ? p.actualHomeScore + ' - ' + p.actualAwayScore : 'Chưa đá'}</td>
+                    <td>${p.predictedHomeScore != null ? p.predictedHomeScore + ' - ' + p.predictedAwayScore : (p.predictedResult === 'Home' ? '🏆 ' + p.homeTeam + ' thắng' : (p.predictedResult === 'Away' ? '🏆 ' + p.awayTeam + ' thắng' : (p.predictedResult === 'Draw' ? '🤝 Hòa' : '-')))}</td>
+                    <td>${(() => {
+                        if (p.isCorrect == null) return '<span class="badge badge-pending">⏳ Chờ</span>';
+                        const n = p.pointsEarned;
+                        const sign = n > 0 ? '+' : '';
+                        return p.isCorrect
+                            ? `<span class="badge badge-correct">✅ +${n}đ</span>`
+                            : `<span class="badge badge-wrong">❌ ${n}đ</span>`;
+                    })()}</td>
+                </tr>`).join('')}</tbody></table></div>`;
+        }
+    </script>
+</body>
+</html>

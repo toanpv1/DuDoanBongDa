@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAdmin()) throw 'redirect';
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('admin-dashboard') + `
+        <main class="main-content">
+            <div class="page-header"><div><h1 class="page-title">📊 Dashboard Admin</h1><p class="page-subtitle">Tổng quan giải đấu và thống kê tất cả thành viên</p></div></div>
+            <div class="stats-grid" id="adminStats"></div>
+            <div class="card" style="margin-top:20px">
+                <div class="card-header"><h3 class="card-title">🏆 Bảng xếp hạng đầy đủ - Tất cả thành viên</h3></div>
+                <div id="fullLeaderboard"><div class="loading-overlay"><div class="spinner"></div></div></div>
+            </div>
+        </main>`;
+        loadAdminStats();
+
+        async function loadAdminStats() {
+            try {
+                const tid = getActiveTournamentId();
+                const data = await Api.get(`/api/admin/statistics/${tid}`);
+                document.getElementById('adminStats').innerHTML = `
+                    <div class="stat-card"><div class="stat-icon purple">👥</div><div><div class="stat-value">${data.totalMembers}</div><div class="stat-label">Thành viên</div></div></div>
+                    <div class="stat-card"><div class="stat-icon green">⚽</div><div><div class="stat-value">${data.completedMatches}/${data.totalMatches}</div><div class="stat-label">Trận đã đá</div></div></div>
+                    <div class="stat-card"><div class="stat-icon yellow">📝</div><div><div class="stat-value">${data.totalPredictions}</div><div class="stat-label">Tổng dự đoán</div></div></div>
+                    <div class="stat-card"><div class="stat-icon red">📊</div><div><div class="stat-value">${data.averageAccuracy}%</div><div class="stat-label">Tỷ lệ TB</div></div></div>
+                `;
+                const lb = data.fullLeaderboard;
+                if (lb && lb.length > 0) {
+                    document.getElementById('fullLeaderboard').innerHTML = `<div class="table-wrapper"><table>
+                        <thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Đúng</th><th>Sai</th><th>Bỏ lỡ</th><th>Tỷ lệ</th></tr></thead>
+                        <tbody>${lb.map(e => `<tr>
+                            <td><span class="rank-badge ${e.rank<=3?'rank-'+e.rank:''}" style="${e.rank>3?'background:var(--bg-secondary);color:var(--text-muted)':''}">${e.rank}</span></td>
+                            <td style="font-weight:600">${e.displayName}</td>
+                            <td><span class="points-badge">${e.totalPoints}</span></td>
+                            <td style="color:var(--success)">${e.correctPredictions}</td>
+                            <td style="color:var(--danger)">${e.wrongPredictions}</td>
+                            <td style="color:var(--text-muted)">${e.missedPredictions}</td>
+                            <td>${e.accuracy}%</td>
+                        </tr>`).join('')}</tbody></table></div>`;
+                } else {
+                    document.getElementById('fullLeaderboard').innerHTML = '<div class="empty-state"><p>Chưa có dữ liệu</p></div>';
+                }
+            } catch (err) { showToast('Lỗi tải thống kê', 'error'); }
+        }
+    </script>
+</body>
+</html>

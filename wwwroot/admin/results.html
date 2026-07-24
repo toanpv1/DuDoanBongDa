@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Nhập kết quả</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAdmin()) throw 'redirect';
+        const tid = getActiveTournamentId();
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('admin-results') + `
+        <main class="main-content">
+            <div class="page-header"><div><h1 class="page-title">📝 Nhập kết quả trận đấu</h1><p class="page-subtitle">Chọn trận đã đá và nhập tỉ số</p></div></div>
+            <div style="margin-bottom:12px;display:flex;gap:12px">
+                <input type="text" class="form-input" id="searchBox" placeholder="🔍 Tìm theo tên đội..." oninput="filterResults()" style="flex:1">
+                <select class="form-select" id="statusFilter" style="width:200px" onchange="filterResults()">
+                    <option value="all">Tất cả trận đấu</option>
+                    <option value="unresulted">Chưa có kết quả</option>
+                </select>
+            </div>
+            <div class="card"><div id="resultsList"><div class="loading-overlay"><div class="spinner"></div></div></div></div>
+        </main>`;
+        loadMatches();
+
+        let allResults = [];
+        async function loadMatches() {
+            const matches = await Api.get(`/api/match?tournamentId=${tid}`);
+            allResults = matches.filter(m => m.status === 'Scheduled' || m.status === 'Completed');
+            filterResults();
+        }
+        function filterResults() {
+            const q = (document.getElementById('searchBox')?.value || '').toLowerCase();
+            const status = document.getElementById('statusFilter')?.value || 'all';
+            
+            let filtered = allResults.filter(m => !q || m.homeTeam.toLowerCase().includes(q) || m.awayTeam.toLowerCase().includes(q));
+            
+            if (status === 'unresulted') {
+                filtered = filtered.filter(m => m.status === 'Scheduled');
+            }
+            const container = document.getElementById('resultsList');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p class="empty-text">Không tìm thấy</p></div>';
+                return;
+            }
+            container.innerHTML = filtered.map(m => `
+                <div class="match-card" style="padding:16px;margin-bottom:10px">
+                    <div class="match-meta">
+                        <span class="match-round">${m.roundName} (+${m.pointsForCorrect}đ)</span>
+                        <span class="match-status ${m.status.toLowerCase()}">${m.status === 'Completed' ? '✅ Đã có KQ' : '📅 ' + formatDateTime(m.matchDate)}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:12px 0">
+                        <span style="font-size:1.1rem">${m.homeFlag||''} <b>${m.homeTeam}</b></span>
+                        <input type="number" min="0" max="20" class="score-input" id="rh_${m.id}" value="${m.homeScore ?? ''}" placeholder="0"> 
+                        <span style="font-weight:800;color:var(--text-muted)">-</span>
+                        <input type="number" min="0" max="20" class="score-input" id="ra_${m.id}" value="${m.awayScore ?? ''}" placeholder="0">
+                        <span style="font-size:1.1rem"><b>${m.awayTeam}</b> ${m.awayFlag||''}</span>
+                        <button class="btn btn-success btn-sm" onclick="saveResult(${m.id})">💾 Lưu KQ</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function saveResult(matchId) {
+            const home = document.getElementById(`rh_${matchId}`).value;
+            const away = document.getElementById(`ra_${matchId}`).value;
+            if (home === '' || away === '') { showToast('Nhập tỉ số', 'error'); return; }
+            try {
+                await Api.put(`/api/match/${matchId}/result`, { homeScore: parseInt(home), awayScore: parseInt(away) });
+                showToast('Cập nhật kết quả + tính điểm thành công!', 'success');
+                loadMatches();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+    </script>
+</body>
+</html>

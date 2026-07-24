@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Quản lý trận đấu</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <div class="modal-overlay" id="matchModal">
+        <div class="modal" style="max-width:600px">
+            <div class="modal-header"><h3 class="modal-title">Thêm trận đấu</h3><button class="modal-close" onclick="document.getElementById('matchModal').classList.remove('active')">×</button></div>
+            <form id="matchForm">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div class="form-group"><label class="form-label">Vòng đấu</label><select class="form-select" id="mRoundId" required></select></div>
+                    <div class="form-group"><label class="form-label">Bảng (nếu có)</label><input type="text" class="form-input" id="mGroup" placeholder="A, B, C..."></div>
+                    <div class="form-group"><label class="form-label">Đội nhà</label><input type="text" class="form-input" id="mHome" required placeholder="VD: Việt Nam"></div>
+                    <div class="form-group"><label class="form-label">Đội khách</label><input type="text" class="form-input" id="mAway" required placeholder="VD: Thái Lan"></div>
+                    <div class="form-group"><label class="form-label">Cờ nhà (emoji)</label><input type="text" class="form-input" id="mHomeFlag" placeholder="🇻🇳"></div>
+                    <div class="form-group"><label class="form-label">Cờ khách (emoji)</label><input type="text" class="form-input" id="mAwayFlag" placeholder="🇹🇭"></div>
+                    <div class="form-group" style="grid-column:span 2"><label class="form-label">Ngày giờ thi đấu</label><input type="datetime-local" class="form-input" id="mDate" required></div>
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('matchModal').classList.remove('active')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">💾 Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAdmin()) throw 'redirect';
+        const tid = getActiveTournamentId();
+        let rounds = [];
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('admin-matches') + `
+        <!-- Modal Fetch -->
+        <div class="modal-overlay" id="fetchModal">
+            <div class="modal" style="max-width:500px">
+                <div class="modal-header"><h3 class="modal-title">Tải Lịch Tự Động</h3><button class="modal-close" onclick="closeFetchModal()">×</button></div>
+                <div style="padding:20px; display:flex; flex-direction:column; gap:16px;">
+                    <p style="color:var(--text-muted);font-size:0.9rem;margin:0">Hệ thống sẽ quét dữ liệu Livescore.com trong ngày thi đấu và tự động tạo danh sách trận cho vòng hiện tại.</p>
+                    <div class="form-group">
+                        <label class="form-label">Vòng đấu nhận dữ liệu</label>
+                        <select class="form-select" id="fetchRoundId"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ngày thi đấu (YYYY-MM-DD)</label>
+                        <input type="date" class="form-input" id="fetchDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Từ khóa giải (VD: Euro, Copa)</label>
+                        <input type="text" class="form-input" id="fetchKeyword" placeholder="Nhập để lọc đúng giải...">
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+                        <button class="btn btn-outline" onclick="closeFetchModal()">Hủy</button>
+                        <button class="btn btn-primary" onclick="startFetch()">🌐 Bắt đầu tải</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <div class="page-header">
+                <div><h1 class="page-title">⚙️ Quản lý trận đấu</h1></div>
+                <div style="display:flex;gap:10px">
+                    <button class="btn btn-primary" onclick="openAddMatch()">➕ Thêm trận</button>
+                    <button class="btn btn-outline" style="color:var(--text-primary); border-color:var(--accent)" onclick="showFetchModal()">🌐 Tải tự động</button>
+                </div>
+            </div>
+            <div style="margin-bottom:12px; display:flex; gap:12px">
+                <input type="text" class="form-input" id="searchBox" placeholder="🔍 Tìm theo tên đội..." oninput="filterMatches()" style="flex:1">
+                <select class="form-select" id="roundFilter" style="width:200px" onchange="filterMatches()">
+                    <option value="">Tất cả vòng đấu</option>
+                </select>
+            </div>
+            <div class="card"><div id="matchTable"><div class="loading-overlay"><div class="spinner"></div></div></div></div>
+        </main>`;
+
+        init();
+
+        async function init() {
+            rounds = await Api.get(`/api/tournament/${tid}/rounds`).catch(() => []);
+            
+            // Populate modal select
+            const sel = document.getElementById('mRoundId');
+            sel.innerHTML = rounds.map(r => `<option value="${r.id}">${r.name} (+${r.pointsForCorrect}đ)</option>`).join('');
+            
+            // Populate filter select
+            const filterSel = document.getElementById('roundFilter');
+            if (filterSel) {
+                filterSel.innerHTML += rounds.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+            }
+            
+            loadMatches();
+        }
+
+        let allMatches = [];
+        async function loadMatches() {
+            allMatches = await Api.get(`/api/match?tournamentId=${tid}`);
+            filterMatches();
+        }
+        function filterMatches() {
+            const q = (document.getElementById('searchBox')?.value || '').toLowerCase();
+            const rId = document.getElementById('roundFilter')?.value;
+            
+            const matches = allMatches.filter(m => 
+                (!q || m.homeTeam.toLowerCase().includes(q) || m.awayTeam.toLowerCase().includes(q)) &&
+                (!rId || m.roundId == rId)
+            );
+            const container = document.getElementById('matchTable');
+            if (!matches || matches.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p class="empty-text">Không tìm thấy</p></div>';
+                return;
+            }
+            container.innerHTML = `<div class="table-wrapper"><table>
+                <thead><tr><th>ID</th><th>Vòng</th><th>Trận</th><th>Ngày giờ</th><th>Trạng thái</th><th>Kết quả</th><th>Hành động</th></tr></thead>
+                <tbody>${matches.map(m => `<tr>
+                    <td>${m.id}</td>
+                    <td><span class="match-round">${m.roundName}${m.groupName?' - '+m.groupName:''}</span></td>
+                    <td>${m.homeFlag||''} ${m.homeTeam} vs ${m.awayTeam} ${m.awayFlag||''}</td>
+                    <td>${formatDateTime(m.matchDate)}</td>
+                    <td><span class="match-status ${m.status.toLowerCase()}">${m.status}</span></td>
+                    <td style="font-weight:700">${m.homeScore != null ? m.homeScore + ' - ' + m.awayScore : '-'}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteMatch(${m.id})">🗑️</button></td>
+                </tr>`).join('')}</tbody></table></div>`;
+        }
+
+        function openAddMatch() {
+            document.getElementById('matchForm').reset();
+            document.getElementById('matchModal').classList.add('active');
+        }
+
+        document.getElementById('matchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                await Api.post('/api/match', {
+                    tournamentId: parseInt(tid), roundId: parseInt(document.getElementById('mRoundId').value),
+                    groupName: document.getElementById('mGroup').value || null,
+                    homeTeam: document.getElementById('mHome').value, awayTeam: document.getElementById('mAway').value,
+                    homeFlag: document.getElementById('mHomeFlag').value || null, awayFlag: document.getElementById('mAwayFlag').value || null,
+                    matchDate: new Date(document.getElementById('mDate').value).toISOString()
+                });
+                showToast('Tạo trận đấu thành công!', 'success');
+                document.getElementById('matchModal').classList.remove('active');
+                loadMatches();
+            } catch (err) { showToast(err.message, 'error'); }
+        });
+
+        async function deleteMatch(id) {
+            if (!confirm('Xóa trận đấu này?')) return;
+            try { await Api.delete(`/api/match/${id}`); loadMatches(); showToast('Đã xóa', 'success'); } catch (err) { showToast(err.message, 'error'); }
+        }
+        function showFetchModal() {
+            const roundsHtml = document.getElementById('mRoundId').innerHTML;
+            document.getElementById('fetchRoundId').innerHTML = roundsHtml;
+            document.getElementById('fetchDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('fetchModal').classList.add('active');
+        }
+
+        function closeFetchModal() {
+            document.getElementById('fetchModal').classList.remove('active');
+        }
+
+        async function startFetch() {
+            const date = document.getElementById('fetchDate').value;
+            const roundId = document.getElementById('fetchRoundId').value;
+            const keyword = document.getElementById('fetchKeyword').value;
+            if (!date || !roundId || !keyword) { showToast('Vui lòng nhập đủ thông tin và từ khóa', 'error'); return; }
+            
+            try {
+                showToast('Đang tải dữ liệu, vui lòng đợi...', 'success');
+                await Api.post('/api/admin/fetch-matches', { tournamentId: tid, roundId: parseInt(roundId), date: date, keyword: keyword });
+                showToast('Tải dữ liệu thành công!', 'success');
+                closeFetchModal();
+                loadMatches();
+            } catch (err) {
+                showToast('Lỗi: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

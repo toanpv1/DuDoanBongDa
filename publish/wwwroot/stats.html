@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thống kê trận đấu | Predictor</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* ── Round group ── */
+        .round-group { margin-bottom: 28px; }
+        .round-label {
+            display: flex; align-items: center; gap: 10px;
+            font-size: .75rem; font-weight: 700; letter-spacing: .1em;
+            text-transform: uppercase; color: var(--text-muted);
+            padding: 0 4px 10px; border-bottom: 1px solid var(--border);
+            margin-bottom: 10px;
+        }
+        .round-label b { color: var(--accent-light); }
+
+        /* ── Match row ── */
+        .m-row {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+        .m-row:hover { border-color: var(--border-hover); }
+
+        .m-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 14px; cursor: pointer; user-select: none;
+        }
+        .m-header:hover { background: rgba(255,255,255,.025); }
+
+        .m-teams {
+            flex: 1; display: flex; align-items: center; gap: 8px;
+            font-size: .88rem; font-weight: 600; color: var(--text-primary);
+            min-width: 0;
+        }
+        .m-teams .score {
+            font-size: .95rem; font-weight: 900;
+            color: var(--accent-light); padding: 0 6px; white-space: nowrap;
+        }
+        .m-result { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
+        .m-date   { font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
+
+        .m-pills { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+        .pill {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: .7rem; font-weight: 700; padding: 2px 7px;
+            border-radius: 999px;
+        }
+        .pill-c { background: var(--success-bg); color: var(--success); }
+        .pill-w { background: var(--danger-bg);  color: var(--danger); }
+        .pill-n { background: rgba(255,255,255,.06); color: var(--text-muted); border:1px solid var(--border); }
+
+        .m-btn {
+            flex-shrink: 0; background: transparent; border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 4px 10px;
+            font-size: .73rem; color: var(--text-muted); cursor: pointer;
+            transition: var(--transition); white-space: nowrap;
+        }
+        .m-btn:hover, .m-row.open .m-btn {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+
+        /* ── Prediction table ── */
+        .pred-wrap {
+            display: none; border-top: 1px solid var(--border);
+            padding: 0 14px 14px; animation: fadeSlide .18s ease;
+        }
+        .m-row.open .pred-wrap { display: block; }
+
+        @keyframes fadeSlide {
+            from { opacity:0; transform:translateY(-6px) }
+            to   { opacity:1; transform:none }
+        }
+
+        .pred-table { width:100%; border-collapse:collapse; margin-top:12px; font-size:.83rem; }
+        .pred-table th {
+            text-align:left; padding:6px 10px;
+            font-size:.68rem; font-weight:700; letter-spacing:.07em;
+            text-transform:uppercase; color:var(--text-muted);
+            border-bottom:1px solid var(--border);
+        }
+        .pred-table td { padding:8px 10px; border-bottom:1px solid rgba(99,102,241,.06); }
+        .pred-table tr:last-child td { border-bottom:none; }
+        .pred-table tr:hover td { background:var(--bg-card-hover); }
+        .pred-table tr.r-c td:first-child { border-left:2px solid var(--success); }
+        .pred-table tr.r-w td:first-child { border-left:2px solid var(--danger); }
+
+        /* ── Summary bar ── */
+        .sum-bar { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+        .sum-card {
+            flex:1; min-width:140px;
+            background:var(--bg-card); border:1px solid var(--border);
+            border-radius:var(--radius-sm); padding:16px 18px; text-align:center;
+        }
+        .sum-card .n { font-size:1.9rem; font-weight:800; }
+        .sum-card .l { font-size:.72rem; color:var(--text-muted); margin-top:3px; }
+
+        .no-data { padding:28px; text-align:center; color:var(--text-muted); font-size:.85rem; }
+    </style>
+</head>
+<body>
+<div id="app" class="app-wrapper"></div>
+
+<script src="/js/app.js"></script>
+<script>
+(async () => {
+    if (!requireAuth()) return;
+
+    const app = document.getElementById('app');
+    app.innerHTML = buildSidebar('stats') + `
+    <main class="main-content">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📊 Thống kê trận đấu</h1>
+                <p class="page-subtitle">Xem ai đoán gì sau khi trận kết thúc</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <div style="position:relative">
+                    <input class="form-input" id="teamSearch" type="text" placeholder="🔍 Tìm đội bóng..."
+                        style="width:200px;padding-left:12px" oninput="filterAndRender()">
+                </div>
+                <select class="form-select" id="roundFilter" style="width:180px" onchange="filterAndRender()">
+                    <option value="">— Tất cả vòng —</option>
+                </select>
+                <button class="btn btn-outline btn-sm" onclick="clearFilters()" title="Xóa bộ lọc">✕ Xóa lọc</button>
+            </div>
+        </div>
+
+        <div class="sum-bar" id="sumBar">
+            <div class="sum-card"><div class="n" id="sumTotal">—</div><div class="l">Trận đã kết thúc</div></div>
+        </div>
+
+        <div id="content">
+            <div class="loading-overlay"><div class="spinner"></div></div>
+        </div>
+    </main>`;
+
+    const tid = getActiveTournamentId();
+    let allMatches = [];
+
+    // Load rounds
+    try {
+        const rounds = await Api.get(`/api/tournament/${tid}/rounds`);
+        const sel = document.getElementById('roundFilter');
+        rounds.forEach(r => {
+            const o = document.createElement('option');
+            o.value = r.id; o.textContent = r.name; sel.appendChild(o);
+        });
+    } catch {}
+
+
+    // Define BEFORE calling
+    window.loadMatches = async function() {
+        document.getElementById('content').innerHTML =
+            '<div class="loading-overlay"><div class="spinner"></div></div>';
+        try {
+            const rid = document.getElementById('roundFilter').value;
+            const url = `/api/match?tournamentId=${tid}&status=Completed` + (rid ? `&roundId=${rid}` : '');
+            allMatches = await Api.get(url);
+            document.getElementById('teamSearch').value = '';  // reset search on round change
+            render(allMatches);
+        } catch(e) {
+            document.getElementById('content').innerHTML =
+                `<div class="no-data">❌ Lỗi tải: ${e.message}</div>`;
+        }
+    };
+
+    await window.loadMatches();
+
+
+    function filterAndRender() {
+        const q = (document.getElementById('teamSearch').value || '').trim().toLowerCase();
+        const rid = document.getElementById('roundFilter').value;
+
+        let filtered = allMatches;
+        if (rid) filtered = filtered.filter(m => String(m.roundId) === rid);
+        if (q)   filtered = filtered.filter(m =>
+            m.homeTeam.toLowerCase().includes(q) ||
+            m.awayTeam.toLowerCase().includes(q)
+        );
+        render(filtered);
+    }
+
+    window.filterAndRender = filterAndRender;
+
+    window.clearFilters = function() {
+        document.getElementById('teamSearch').value = '';
+        document.getElementById('roundFilter').value = '';
+        render(allMatches);
+    };
+
+    function render(matches) {
+        matches = matches || allMatches;
+        document.getElementById('sumTotal').textContent = matches.length + (matches.length < allMatches.length ? ` / ${allMatches.length}` : '');
+
+        const content = document.getElementById('content');
+        if (!matches.length) {
+            const q = document.getElementById('teamSearch').value;
+            content.innerHTML = `<div class="empty-state"><div class="empty-icon">${q ? '🔍' : '🏁'}</div><div class="empty-text">${q ? `Không tìm thấy đội nào khop với "${q}"` : 'Chưa có trận nào kết thúc'}</div></div>`;
+            return;
+        }
+
+        // Group by round
+        const groups = {};
+        for (const m of matches) {
+            if (!groups[m.roundName]) groups[m.roundName] = [];
+            groups[m.roundName].push(m);
+        }
+
+        content.innerHTML = Object.entries(groups).map(([rName, grpMatches]) => `
+            <div class="round-group">
+                <div class="round-label">⚽ ${rName} <b>(${grpMatches.length} trận)</b></div>
+                ${grpMatches.map(m => matchRow(m)).join('')}
+            </div>`).join('');
+    }
+
+    function matchRow(m) {
+        const winner = m.homeScore > m.awayScore ? `${m.homeTeam} thắng`
+                     : m.homeScore < m.awayScore ? `${m.awayTeam} thắng` : 'Hòa';
+        const date = new Date(m.matchDate).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'});
+        return `
+        <div class="m-row" id="mr-${m.id}">
+            <div class="m-header" onclick="toggleRow(${m.id})">
+                <div class="m-teams">
+                    <span>${m.homeFlag||'🏳️'}</span>
+                    <span>${m.homeTeam}</span>
+                    <span class="score">${m.homeScore} - ${m.awayScore}</span>
+                    <span>${m.awayTeam}</span>
+                    <span>${m.awayFlag||'🏳️'}</span>
+                </div>
+                <span class="m-result">${winner}</span>
+                <span class="m-date">${date}</span>
+                <div class="m-pills" id="pills-${m.id}">
+                    <span class="pill pill-n">…</span>
+                </div>
+                <button class="m-btn" id="btn-${m.id}">👁 Xem</button>
+            </div>
+            <div class="pred-wrap" id="pw-${m.id}">
+                <div class="no-data"><div class="spinner" style="width:20px;height:20px;margin:0 auto 8px"></div>Đang tải...</div>
+            </div>
+        </div>`;
+    }
+
+    window.toggleRow = async function(matchId) {
+        const row  = document.getElementById(`mr-${matchId}`);
+        const wrap = document.getElementById(`pw-${matchId}`);
+        const isOpen = row.classList.toggle('open');
+
+        if (isOpen && !wrap.dataset.loaded) {
+            try {
+                const stats = await Api.get(`/api/match/${matchId}/stats`);
+                wrap.innerHTML = buildPredTable(stats, matchId);
+                wrap.dataset.loaded = '1';
+
+                // Update pills
+                const pills = document.getElementById(`pills-${matchId}`);
+                if (stats.totalPredictions === 0) {
+                    pills.innerHTML = `<span class="pill pill-n">0</span>`;
+                } else {
+                    pills.innerHTML =
+                        `<span class="pill pill-c">✅ ${stats.correctCount}</span>` +
+                        `<span class="pill pill-w">❌ ${stats.wrongCount}</span>`;
+                }
+            } catch(e) {
+                wrap.innerHTML = `<div class="no-data">Lỗi: ${e.message}</div>`;
+            }
+        }
+    };
+
+    function buildPredTable(stats, matchId) {
+        if (!stats.predictions.length)
+            return `<div class="no-data">Không có ai dự đoán trận này</div>`;
+
+        const match = allMatches.find(m => m.id === matchId);
+        const homeTeam = match?.homeTeam || 'Chủ';
+        const awayTeam = match?.awayTeam || 'Khách';
+
+        const sorted = [
+            ...stats.predictions.filter(p => p.isCorrect === true),
+            ...stats.predictions.filter(p => p.isCorrect === false),
+            ...stats.predictions.filter(p => p.isCorrect === null)
+        ];
+
+        const rows = sorted.map(p => {
+            let pred = '';
+            if (p.predictedHomeScore != null) pred = `${p.predictedHomeScore} - ${p.predictedAwayScore}`;
+            if (p.predictedResult) {
+                const rm = {Home:`${homeTeam} thắng`, Draw:'Hòa', Away:`${awayTeam} thắng`};
+                const txt = rm[p.predictedResult] || p.predictedResult;
+                pred += pred ? ` · ${txt}` : txt;
+            }
+            const n = p.pointsEarned;
+            const pts = n > 0 ? `<span style="color:var(--success);font-weight:700">+${n}đ</span>`
+                      : n < 0 ? `<span style="color:var(--danger);font-weight:700">${n}đ</span>`
+                      : `<span style="color:var(--text-muted)">0đ</span>`;
+            const icon = p.isCorrect === true ? '✅' : p.isCorrect === false ? '❌' : '⏳';
+            const cls  = p.isCorrect === true ? 'r-c' : p.isCorrect === false ? 'r-w' : '';
+            return `<tr class="${cls}"><td><b>${p.displayName}</b></td><td style="color:var(--text-muted)">${pred||'—'}</td><td style="text-align:center">${icon}</td><td style="text-align:right">${pts}</td></tr>`;
+        }).join('');
+
+        return `
+        <div style="display:flex;gap:14px;margin:12px 0 6px;font-size:.78rem;font-weight:700">
+            <span style="color:var(--success)">✅ Đúng: ${stats.correctCount}</span>
+            <span style="color:var(--danger)">❌ Sai: ${stats.wrongCount}</span>
+            <span style="color:var(--text-muted)">Tổng: ${stats.totalPredictions}</span>
+        </div>
+        <table class="pred-table">
+            <thead><tr>
+                <th>Thành viên</th><th>Dự đoán</th>
+                <th style="text-align:center">KQ</th>
+                <th style="text-align:right">Điểm</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+    }
+})();
+</script>
+</body>
+</html>

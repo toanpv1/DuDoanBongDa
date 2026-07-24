@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dự đoán - Predictor</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .result-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap
+        }
+
+        .result-btn {
+            padding: 8px 18px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 700;
+            font-size: .85rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: inherit
+        }
+
+        .result-btn:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary)
+        }
+
+        .result-btn.sel {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, .15);
+            color: var(--accent-light);
+            box-shadow: 0 0 12px var(--accent-glow)
+        }
+
+        .result-btn.home {
+            border-color: var(--success);
+            background: var(--success-bg);
+            color: var(--success)
+        }
+
+        .result-btn.draw {
+            border-color: var(--warning);
+            background: var(--warning-bg);
+            color: var(--warning)
+        }
+
+        .result-btn.away {
+            border-color: var(--danger);
+            background: var(--danger-bg);
+            color: var(--danger)
+        }
+
+        .pred-divider {
+            text-align: center;
+            font-size: .75rem;
+            color: var(--text-muted);
+            margin: 8px 0;
+            position: relative
+        }
+
+        .pred-divider::before,
+        .pred-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: calc(50% - 30px);
+            height: 1px;
+            background: var(--border)
+        }
+
+        .pred-divider::before {
+            left: 0
+        }
+
+        .pred-divider::after {
+            right: 0
+        }
+
+        .pred-result-display {
+            display: inline-flex;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: .8rem;
+            font-weight: 600
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+        if (Api.isAdmin()) {
+            window.location.href = '/index.html';
+            throw 'redirect';
+        }
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('predictions') + `
+        <main class="main-content">
+            <div class="page-header">
+                <div><h1 class="page-title">🔮 Dự đoán trận đấu</h1><p class="page-subtitle">Chọn vòng đấu và nhập dự đoán của bạn</p></div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap">
+                    <select class="form-select" id="predFilter" style="width:180px" onchange="applyFilters()">
+                        <option value="all">Tất cả trạng thái</option>
+                        <option value="unpredicted">Chưa dự đoán (Còn hạn)</option>
+                        <option value="missed">Bỏ lỡ (Hết hạn)</option>
+                    </select>
+                    <select class="form-select" id="roundFilter" style="width:180px" onchange="loadMatches()">
+                        <option value="">Tất cả vòng</option>
+                    </select>
+                </div>
+            </div>
+            <div id="matchesList"><div class="loading-overlay"><div class="spinner"></div> Đang tải...</div></div>
+        </main>`;
+
+        loadRounds();
+        loadMatches();
+
+        async function loadRounds() {
+            try {
+                const tid = getActiveTournamentId();
+                const rounds = await Api.get(`/api/tournament/${tid}/rounds`);
+                const sel = document.getElementById('roundFilter');
+                rounds.forEach(r => { const o = document.createElement('option'); o.value = r.id; o.textContent = `${r.name} (${r.pointsForCorrect}đ)`; sel.appendChild(o); });
+            } catch (e) { console.error(e); }
+        }
+
+        let allMatches = [];
+        async function loadMatches() {
+            const tid = getActiveTournamentId();
+            const roundId = document.getElementById('roundFilter').value;
+            let url = `/api/match?tournamentId=${tid}`;
+            if (roundId) url += `&roundId=${roundId}`;
+
+            try {
+                allMatches = await Api.get(url);
+                applyFilters();
+            } catch (err) { showToast('Lỗi tải trận đấu', 'error'); }
+        }
+
+        function applyFilters() {
+            const predFilter = document.getElementById('predFilter').value;
+            let filteredMatches = allMatches;
+            if (predFilter === 'unpredicted') {
+                filteredMatches = allMatches.filter(m => !m.myPrediction && m.isPredictionOpen);
+            } else if (predFilter === 'missed') {
+                filteredMatches = allMatches.filter(m => !m.myPrediction && !m.isPredictionOpen);
+            }
+
+            const container = document.getElementById('matchesList');
+            if (!filteredMatches || filteredMatches.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p class="empty-text">Chưa có trận đấu nào phù hợp</p></div>';
+                return;
+            }
+            container.innerHTML = filteredMatches.map(m => renderMatchCard(m)).join('');
+        }
+
+        function renderMatchCard(m) {
+            const hasPrediction = !!m.myPrediction;
+            const isOpen = m.isPredictionOpen;
+            const isCompleted = m.status === 'Completed';
+            const pType = m.predictionType || 'Score'; // Score, Result, Both
+
+            let predictionSection = '';
+            if (isCompleted && hasPrediction) {
+                // Show completed prediction result
+                const icon = m.myPrediction.isCorrect ? '✅' : '❌';
+                const cls = m.myPrediction.isCorrect ? 'badge-correct' : 'badge-wrong';
+                let predText = '';
+                if (m.myPrediction.predictedHomeScore !== null && m.myPrediction.predictedHomeScore !== undefined) {
+                    predText = `${m.myPrediction.predictedHomeScore} - ${m.myPrediction.predictedAwayScore}`;
+                }
+                if (m.myPrediction.predictedResult) {
+                    const rLabel = m.myPrediction.predictedResult === 'Home' ? '🏆 ' + m.homeTeam + ' thắng' : m.myPrediction.predictedResult === 'Away' ? '🏆 ' + m.awayTeam + ' thắng' : '🤝 Hòa';
+                    predText += predText ? ` (${rLabel})` : rLabel;
+                }
+                // Hiển thị điểm: dương thì +, âm tự có dấu -, 0 thì 0
+                const pts = m.myPrediction.pointsEarned;
+                const ptsDisplay = pts > 0 ? `+${pts}đ` : `${pts}đ`;
+                predictionSection = `<div class="prediction-input">
+                    <span>Dự đoán: <b>${predText}</b></span>
+                    <span class="badge ${cls}">${icon} ${ptsDisplay}</span>
+                    <button class="btn btn-outline btn-sm" onclick="showMatchStats(${m.id})" style="margin-left:4px">📊 Thống kê</button>
+                </div>`;
+            } else if (isCompleted && !hasPrediction) {
+                predictionSection = `<div class="prediction-input"><span class="badge badge-wrong">Không dự đoán</span><button class="btn btn-outline btn-sm" onclick="showMatchStats(${m.id})" style="margin-left:8px">📊 Thống kê</button></div>`;
+            } else if (isOpen) {
+                predictionSection = renderPredictionForm(m, pType, hasPrediction);
+            } else if (!isOpen && hasPrediction) {
+                // Deadline passed but user already predicted — show locked prediction
+                let predText = '';
+                if (m.myPrediction.predictedHomeScore !== null && m.myPrediction.predictedHomeScore !== undefined) {
+                    predText = `${m.myPrediction.predictedHomeScore} - ${m.myPrediction.predictedAwayScore}`;
+                }
+                if (m.myPrediction.predictedResult) {
+                    const rLabel = m.myPrediction.predictedResult === 'Home' ? '🏆 ' + m.homeTeam + ' thắng'
+                        : m.myPrediction.predictedResult === 'Away' ? '🏆 ' + m.awayTeam + ' thắng'
+                            : '🤝 Hòa';
+                    predText += predText ? ` · ${rLabel}` : rLabel;
+                }
+                predictionSection = `<div class="prediction-input">
+                    <span>Dự đoán: <b>${predText}</b></span>
+                    <span style="color:var(--text-muted);font-size:0.78rem">🔒 Đã khóa</span>
+                </div>`;
+            } else {
+                // No prediction and deadline passed
+                predictionSection = `<div class="prediction-input"><span style="color:var(--danger);font-size:0.85rem">⏰ Đã hết hạn dự đoán</span></div>`;
+            }
+
+            return `<div class="match-card">
+                <div class="match-meta">
+                    <span class="match-round">${m.roundName} ${m.groupName ? '- Bảng ' + m.groupName : ''} (+${m.pointsForCorrect}đ)</span>
+                    <div><span class="match-status ${m.status.toLowerCase()}">${m.status === 'Completed' ? '✅ Kết thúc' : m.status === 'Live' ? '🔴 Đang đá' : '📅 ' + formatDateTime(m.matchDate)}</span></div>
+                </div>
+                <div class="match-teams">
+                    <div class="match-team"><span class="flag">${m.homeFlag || '🏳️'}</span><span class="team-name">${m.homeTeam}</span></div>
+                    ${isCompleted ? `<div class="match-score">${m.homeScore} - ${m.awayScore}</div>` : `<span class="match-vs">VS</span>`}
+                    <div class="match-team"><span class="flag">${m.awayFlag || '🏳️'}</span><span class="team-name">${m.awayTeam}</span></div>
+                </div>
+                ${predictionSection}
+            </div>`;
+        }
+
+        function renderPredictionForm(m, pType, hasPrediction) {
+            const mp = m.myPrediction;
+            const btnLabel = hasPrediction ? '✏️ Sửa' : '💾 Lưu';
+
+            if (pType === 'Score') {
+                // Score only - number inputs
+                return `<div class="prediction-input">
+                    <input type="number" min="0" max="20" class="score-input" id="home_${m.id}" value="${hasPrediction ? mp.predictedHomeScore : ''}" placeholder="0">
+                    <span style="font-weight:800;color:var(--text-muted)">-</span>
+                    <input type="number" min="0" max="20" class="score-input" id="away_${m.id}" value="${hasPrediction ? mp.predictedAwayScore : ''}" placeholder="0">
+                    <button class="btn btn-primary btn-sm" onclick="submitScore(${m.id})">${btnLabel}</button>
+                </div>`;
+            }
+
+            if (pType === 'Result') {
+                // Result only - 3 buttons
+                const sel = hasPrediction ? mp.predictedResult : '';
+                return `<div class="prediction-input" style="flex-direction:column;gap:10px">
+                    <div class="result-btns">
+                        <button class="result-btn ${sel === 'Home' ? 'sel home' : ''}" id="rHome_${m.id}" onclick="selResult(${m.id},'Home')">🏆 ${m.homeTeam} thắng</button>
+                        <button class="result-btn ${sel === 'Draw' ? 'sel draw' : ''}" id="rDraw_${m.id}" onclick="selResult(${m.id},'Draw')">🤝 Hòa</button>
+                        <button class="result-btn ${sel === 'Away' ? 'sel away' : ''}" id="rAway_${m.id}" onclick="selResult(${m.id},'Away')">🏆 ${m.awayTeam} thắng</button>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="submitResult(${m.id})">${btnLabel}</button>
+                </div>`;
+            }
+
+            // Both - score inputs + result buttons
+            const sel = hasPrediction ? mp.predictedResult : '';
+            return `<div class="prediction-input" style="flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;justify-content:center;gap:12px">
+                    <input type="number" min="0" max="20" class="score-input" id="home_${m.id}" value="${hasPrediction && mp.predictedHomeScore != null ? mp.predictedHomeScore : ''}" placeholder="0">
+                    <span style="font-weight:800;color:var(--text-muted)">-</span>
+                    <input type="number" min="0" max="20" class="score-input" id="away_${m.id}" value="${hasPrediction && mp.predictedAwayScore != null ? mp.predictedAwayScore : ''}" placeholder="0">
+                </div>
+                <div class="pred-divider">hoặc</div>
+                <div class="result-btns">
+                    <button class="result-btn ${sel === 'Home' ? 'sel home' : ''}" id="rHome_${m.id}" onclick="selResult(${m.id},'Home')">🏆 ${m.homeTeam} thắng</button>
+                    <button class="result-btn ${sel === 'Draw' ? 'sel draw' : ''}" id="rDraw_${m.id}" onclick="selResult(${m.id},'Draw')">🤝 Hòa</button>
+                    <button class="result-btn ${sel === 'Away' ? 'sel away' : ''}" id="rAway_${m.id}" onclick="selResult(${m.id},'Away')">🏆 ${m.awayTeam} thắng</button>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="submitBoth(${m.id})">${btnLabel}</button>
+            </div>`;
+        }
+
+        function selResult(matchId, result) {
+            ['Home', 'Draw', 'Away'].forEach(r => {
+                const btn = document.getElementById(`r${r}_${matchId}`);
+                if (btn) {
+                    btn.classList.remove('sel', 'home', 'draw', 'away');
+                    if (r === result) btn.classList.add('sel', r.toLowerCase());
+                }
+            });
+        }
+
+        function getSelectedResult(matchId) {
+            if (document.getElementById(`rHome_${matchId}`)?.classList.contains('sel')) return 'Home';
+            if (document.getElementById(`rDraw_${matchId}`)?.classList.contains('sel')) return 'Draw';
+            if (document.getElementById(`rAway_${matchId}`)?.classList.contains('sel')) return 'Away';
+            return null;
+        }
+
+        // Submit for Score type
+        async function submitScore(matchId) {
+            const home = document.getElementById(`home_${matchId}`).value;
+            const away = document.getElementById(`away_${matchId}`).value;
+            if (home === '' || away === '') { showToast('Vui lòng nhập tỉ số', 'error'); return; }
+
+            const h = parseInt(home), a = parseInt(away);
+            const result = h > a ? 'Home' : h < a ? 'Away' : 'Draw';
+            try {
+                await Api.post('/api/prediction', { matchId, predictedHomeScore: h, predictedAwayScore: a, predictedResult: result });
+                showToast('Dự đoán thành công!', 'success');
+                loadMatches();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        // Submit for Result type
+        async function submitResult(matchId) {
+            const result = getSelectedResult(matchId);
+            if (!result) { showToast('Vui lòng chọn Thắng/Hòa/Thua', 'error'); return; }
+
+            try {
+                await Api.post('/api/prediction', { matchId, predictedHomeScore: null, predictedAwayScore: null, predictedResult: result });
+                showToast('Dự đoán thành công!', 'success');
+                loadMatches();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        // Submit for Both type
+        async function submitBoth(matchId) {
+            const homeEl = document.getElementById(`home_${matchId}`);
+            const awayEl = document.getElementById(`away_${matchId}`);
+            const home = homeEl?.value;
+            const away = awayEl?.value;
+            const btnResult = getSelectedResult(matchId);
+
+            // Must have either score or result
+            const hasScore = home !== '' && away !== '';
+            const hasResult = !!btnResult;
+
+            if (!hasScore && !hasResult) {
+                showToast('Vui lòng nhập tỉ số hoặc chọn kết quả', 'error');
+                return;
+            }
+
+            let predictedHomeScore = hasScore ? parseInt(home) : null;
+            let predictedAwayScore = hasScore ? parseInt(away) : null;
+            let predictedResult = btnResult;
+
+            // If has score but no explicit result, derive from score
+            if (hasScore && !hasResult) {
+                predictedResult = predictedHomeScore > predictedAwayScore ? 'Home' : predictedHomeScore < predictedAwayScore ? 'Away' : 'Draw';
+            }
+
+            try {
+                await Api.post('/api/prediction', { matchId, predictedHomeScore, predictedAwayScore, predictedResult });
+                showToast('Dự đoán thành công!', 'success');
+                loadMatches();
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+
+        // ===== THỐNG KÊ TRẬN ĐẤU =====
+        async function showMatchStats(matchId) {
+            const modal = document.getElementById('statsModal');
+            const title = document.getElementById('statsModalTitle');
+            const body = document.getElementById('statsModalBody');
+
+            // Show modal with spinner immediately
+            const match = allMatches.find(m => m.id === matchId);
+            const homeTeam = match?.homeTeam || '';
+            const awayTeam = match?.awayTeam || '';
+            const score = match ? `${match.homeScore} - ${match.awayScore}` : '';
+            title.innerHTML = `
+                <div>${match?.homeFlag || '🏳️'} ${homeTeam} <b style="color:var(--accent-light)">${score}</b> ${awayTeam} ${match?.awayFlag || '🏳️'}</div>
+                <div style="font-size:.75rem;color:var(--text-muted);font-weight:400;margin-top:2px">${match?.roundName || ''}</div>`;
+            body.innerHTML = `<div style="text-align:center;padding:32px"><div class="spinner" style="margin:0 auto 10px"></div>Đang tải...</div>`;
+            modal.style.display = 'flex';
+
+            try {
+                const stats = await Api.get(`/api/match/${matchId}/stats`);
+
+                if (!stats.predictions.length) {
+                    body.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:32px">Chưa có ai dự đoán trận này</div>`;
+                    return;
+                }
+
+                // Sort: correct first, then wrong, then pending
+                const sorted = [
+                    ...stats.predictions.filter(p => p.isCorrect === true),
+                    ...stats.predictions.filter(p => p.isCorrect === false),
+                    ...stats.predictions.filter(p => p.isCorrect === null)
+                ];
+
+                function makeRow(p) {
+                    let predText = '';
+                    if (p.predictedHomeScore != null) predText = `${p.predictedHomeScore} - ${p.predictedAwayScore}`;
+                    if (p.predictedResult) {
+                        const rm = { Home: `${homeTeam} thắng`, Draw: 'Hòa', Away: `${awayTeam} thắng` };
+                        predText += predText ? ` · ${rm[p.predictedResult] || p.predictedResult}` : (rm[p.predictedResult] || p.predictedResult);
+                    }
+                    const n = p.pointsEarned;
+                    const ptsStr = n > 0 ? `<span style="color:var(--success);font-weight:700">+${n}đ</span>`
+                        : n < 0 ? `<span style="color:var(--danger);font-weight:700">${n}đ</span>`
+                            : `<span style="color:var(--text-muted)">—</span>`;
+                    const icon = p.isCorrect === true ? '✅' : p.isCorrect === false ? '❌' : '⏳';
+                    const leftBorder = p.isCorrect === true ? 'border-left:2px solid var(--success)'
+                        : p.isCorrect === false ? 'border-left:2px solid var(--danger)' : '';
+                    return `<tr style="${leftBorder}">
+                        <td style="padding:9px 12px;font-weight:600">${p.displayName}</td>
+                        <td style="padding:9px 12px;color:var(--text-muted);font-size:.85rem">${predText || '—'}</td>
+                        <td style="padding:9px 12px;text-align:center">${icon}</td>
+                        <td style="padding:9px 12px;text-align:right">${ptsStr}</td>
+                    </tr>`;
+                }
+
+                body.innerHTML = `
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+                        <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:12px;text-align:center">
+                            <div style="font-size:1.6rem;font-weight:800">${stats.totalPredictions}</div>
+                            <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px">Tổng dự đoán</div>
+                        </div>
+                        <div style="background:var(--success-bg);border-radius:var(--radius-sm);padding:12px;text-align:center">
+                            <div style="font-size:1.6rem;font-weight:800;color:var(--success)">${stats.correctCount}</div>
+                            <div style="font-size:.72rem;color:var(--success);margin-top:2px">Đoán đúng ✅</div>
+                        </div>
+                        <div style="background:var(--danger-bg);border-radius:var(--radius-sm);padding:12px;text-align:center">
+                            <div style="font-size:1.6rem;font-weight:800;color:var(--danger)">${stats.wrongCount}</div>
+                            <div style="font-size:.72rem;color:var(--danger);margin-top:2px">Đoán sai ❌</div>
+                        </div>
+                    </div>
+                    <table style="width:100%;border-collapse:collapse;font-size:.875rem">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border)">
+                                <th style="padding:7px 12px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:700">Thành viên</th>
+                                <th style="padding:7px 12px;text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:700">Dự đoán</th>
+                                <th style="padding:7px 12px;text-align:center;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:700">KQ</th>
+                                <th style="padding:7px 12px;text-align:right;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-weight:700">Điểm</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sorted.map(makeRow).join('')}
+                        </tbody>
+                    </table>`;
+            } catch (err) {
+                body.innerHTML = `<div style="text-align:center;color:var(--danger);padding:24px">Lỗi: ${err.message}</div>`;
+            }
+        }
+    </script>
+
+    <!-- Modal thống kê -->
+    <div id="statsModal" onclick="if(event.target===this)this.style.display='none'"
+        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:2000;justify-content:center;align-items:center;padding:16px">
+        <div
+            style="background:var(--bg-card);width:100%;max-width:600px;border-radius:var(--radius-lg);box-shadow:0 24px 64px rgba(0,0,0,.6);display:flex;flex-direction:column;max-height:90vh;border:1px solid var(--border)">
+            <!-- Header -->
+            <div
+                style="display:flex;justify-content:space-between;align-items:flex-start;padding:18px 20px 14px;border-bottom:1px solid var(--border)">
+                <div id="statsModalTitle"
+                    style="font-size:.9rem;font-weight:700;color:var(--text-primary);line-height:1.4"></div>
+                <button onclick="document.getElementById('statsModal').style.display='none'"
+                    style="background:transparent;border:none;font-size:1.5rem;line-height:1;cursor:pointer;color:var(--text-muted);margin-left:12px;flex-shrink:0">&times;</button>
+            </div>
+            <!-- Body -->
+            <div id="statsModalBody" style="overflow-y:auto;padding:18px;flex:1"></div>
+            <!-- Footer -->
+            <div style="padding:12px 18px;border-top:1px solid var(--border);text-align:right">
+                <a href="/stats.html" style="font-size:.8rem;color:var(--accent-light);text-decoration:none">📊 Xem
+                    trang thống kê đầy đủ →</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Quản lý giải đấu</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .t-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:24px}
+        .t-card{background:var(--bg-card);border:2px solid var(--border);border-radius:var(--radius-lg);padding:20px;cursor:pointer;transition:var(--transition);position:relative}
+        .t-card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+        .t-card.sel{border-color:var(--accent);box-shadow:var(--shadow-glow)}
+        .t-card.sel::before{content:'🟢 Đang chọn';position:absolute;top:12px;right:12px;font-size:.7rem;padding:3px 8px;background:var(--success-bg);color:var(--success);border-radius:12px;font-weight:600}
+        .t-card.off::before{content:'🔒 Đã đóng';position:absolute;top:12px;right:12px;font-size:.7rem;padding:3px 8px;background:var(--danger-bg);color:var(--danger);border-radius:12px;font-weight:600}
+        .t-card .tn{font-size:1.15rem;font-weight:700;margin-bottom:6px;padding-right:80px}
+        .t-card .td{font-size:.8rem;color:var(--text-muted);margin-bottom:12px}
+        .t-card .tm{display:flex;gap:16px;font-size:.8rem;color:var(--text-secondary)}
+        .t-acts{display:flex;gap:6px;margin-top:12px}
+        .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+        .cfg-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px}
+        .cfg-card h3{font-size:1.05rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .rr{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+        .rr:last-child{border-bottom:none}
+        .rr .rn{flex:1;font-weight:600;font-size:.9rem}
+        .rr .ri{width:65px;text-align:center;font-size:1.05rem;font-weight:700;padding:5px}
+        .rr .rs{font-size:.7rem;color:var(--text-muted);padding:2px 6px;background:var(--bg-secondary);border-radius:4px}
+        .po{display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--border);border-radius:var(--radius-md);cursor:pointer;transition:var(--transition);margin-bottom:6px}
+        .po:hover{border-color:var(--border-hover)}
+        .po.sel{border-color:var(--accent);background:rgba(99,102,241,.1)}
+        .po input[type=radio]{display:none}
+        .dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .po.sel .dot{border-color:var(--accent)}
+        .po.sel .dot::after{content:'';width:9px;height:9px;border-radius:50%;background:var(--accent)}
+        .ti h4{font-size:.9rem;font-weight:600}
+        .ti p{font-size:.75rem;color:var(--text-muted)}
+        .bk{display:inline-flex;align-items:center;gap:6px;color:var(--text-muted);font-size:.85rem;cursor:pointer;margin-bottom:16px;transition:var(--transition)}
+        .bk:hover{color:var(--accent)}
+        .add-round-row{display:flex;gap:8px;padding:10px 0;align-items:center}
+        .add-round-row input,.add-round-row select{font-size:.85rem}
+        .member-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px}
+        .member-card h3{font-size:1.05rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .member-count{font-size:.8rem;font-weight:500;color:var(--accent-light);background:rgba(99,102,241,.15);padding:2px 10px;border-radius:12px;margin-left:auto}
+        .member-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-sm);transition:var(--transition);border-bottom:1px solid rgba(99,102,241,.08)}
+        .member-row:last-child{border-bottom:none}
+        .member-row:hover{background:var(--bg-card-hover)}
+        .member-avatar{width:34px;height:34px;border-radius:50%;background:var(--gradient-1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;color:white;flex-shrink:0}
+        .member-info{flex:1;min-width:0}
+        .member-name{font-weight:600;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .member-meta{font-size:.75rem;color:var(--text-muted)}
+        .member-joined{font-size:.7rem;color:var(--text-muted);padding:2px 8px;background:var(--bg-secondary);border-radius:4px}
+        .add-member-row{display:flex;gap:8px;padding:12px 0;align-items:center;border-top:1px solid var(--border);margin-top:8px}
+        .add-member-row select{flex:1;font-size:.85rem}
+        .member-empty{text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem}
+        .member-search{margin-bottom:12px}
+        .member-list{max-height:400px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--accent) var(--bg-secondary)}
+        .member-list::-webkit-scrollbar{width:5px}
+        .member-list::-webkit-scrollbar-track{background:var(--bg-secondary);border-radius:3px}
+        .member-list::-webkit-scrollbar-thumb{background:var(--accent);border-radius:3px}
+        .add-all-btn{font-size:.75rem !important;white-space:nowrap}
+        @media(max-width:768px){.cfg-grid,.t-list{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+<div class="app-wrapper" id="app"></div>
+<div class="modal-overlay" id="createModal">
+    <div class="modal" style="max-width:550px">
+        <div class="modal-header"><h3 class="modal-title">🏆 Tạo giải đấu mới</h3><button class="modal-close" onclick="closeC()">×</button></div>
+        <form id="cForm">
+            <div class="form-group"><label class="form-label">Tên giải đấu *</label><input type="text" class="form-input" id="cName" required placeholder="VD: FIFA World Cup 2026"></div>
+            <div class="form-group"><label class="form-label">Mô tả</label><input type="text" class="form-input" id="cDesc" placeholder="VD: Giải vô địch bóng đá thế giới"></div>
+            <div class="form-group"><label class="form-label">Loại dự đoán *</label>
+                <select class="form-select" id="cType"><option value="Score">📊 Tỉ số</option><option value="Result">🎯 T/H/T</option><option value="Both">⚡ Cả hai</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">Cách tính điểm *</label>
+                <select class="form-select" id="cScoring">
+                    <option value="Standard">⚖️ Standard - Đúng cộng / Sai trừ điểm vòng</option>
+                    <option value="SharedPool">🎰 SharedPool - Chia điểm từ pool chung</option>
+                </select>
+                <small style="color:var(--text-muted);font-size:.75rem">SharedPool: pool = số người × điểm vòng, chia đều cho người đúng, trừ đều người sai</small>
+            </div>
+            <div class="form-group"><label class="form-label">Mẫu vòng đấu *</label>
+                <select class="form-select" id="cTemplate">
+                    <option value="wc48">⚽ World Cup 48 đội (7 vòng)</option>
+                    <option value="wc32">⚽ World Cup 32 đội (5 vòng)</option>
+                    <option value="euro24">🏆 Euro 24 đội (5 vòng)</option>
+                    <option value="euro32">🏆 Euro 32 đội (6 vòng)</option>
+                    <option value="custom">🔧 Tùy chỉnh (thêm sau)</option>
+                </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-group"><label class="form-label">Ngày bắt đầu *</label><input type="date" class="form-input" id="cStart" required></div>
+                <div class="form-group"><label class="form-label">Ngày kết thúc *</label><input type="date" class="form-input" id="cEnd" required></div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button type="button" class="btn btn-outline" onclick="closeC()">Hủy</button>
+                <button type="submit" class="btn btn-primary">🚀 Tạo giải đấu</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="/js/app.js"></script>
+<script>
+if(!requireAdmin())throw'r';
+let view='list',cfgId=null;
+
+const TEMPLATES={
+    wc48:[{n:"Vòng bảng",s:"GROUP",p:1,o:1},{n:"Vòng 32 đội",s:"R32",p:2,o:2},{n:"Vòng 16 đội",s:"R16",p:3,o:3},{n:"Tứ kết",s:"QF",p:5,o:4},{n:"Bán kết",s:"SF",p:7,o:5},{n:"Tranh hạng 3",s:"3RD",p:10,o:6},{n:"Chung kết",s:"FINAL",p:10,o:7}],
+    wc32:[{n:"Vòng bảng",s:"GROUP",p:1,o:1},{n:"Vòng 16 đội",s:"R16",p:2,o:2},{n:"Tứ kết",s:"QF",p:3,o:3},{n:"Bán kết",s:"SF",p:5,o:4},{n:"Chung kết",s:"FINAL",p:7,o:5}],
+    euro24:[{n:"Vòng bảng",s:"GROUP",p:1,o:1},{n:"Vòng 16 đội",s:"R16",p:2,o:2},{n:"Tứ kết",s:"QF",p:3,o:3},{n:"Bán kết",s:"SF",p:5,o:4},{n:"Chung kết",s:"FINAL",p:7,o:5}],
+    euro32:[{n:"Vòng bảng",s:"GROUP",p:1,o:1},{n:"Vòng 32 đội",s:"R32",p:2,o:2},{n:"Vòng 16 đội",s:"R16",p:3,o:3},{n:"Tứ kết",s:"QF",p:5,o:4},{n:"Bán kết",s:"SF",p:7,o:5},{n:"Chung kết",s:"FINAL",p:10,o:6}],
+    custom:[]
+};
+
+render();
+
+function render(){
+    document.getElementById('app').innerHTML=buildSidebar('admin-tournament')+'<main class="main-content" id="M"></main>';
+    view==='list'?renderList():renderCfg();
+}
+
+async function renderList(){
+    const m=document.getElementById('M');
+    m.innerHTML=`<div class="page-header"><div><h1 class="page-title">🏆 Quản lý giải đấu</h1><p class="page-subtitle">Tạo, cấu hình và quản lý các giải đấu</p></div><button class="btn btn-primary" onclick="openC()">➕ Tạo giải đấu mới</button></div><div id="TL" class="t-list"><div class="loading-overlay"><div class="spinner"></div></div></div>`;
+    try{
+        const ts=await Api.get('/api/tournament'),at=getActiveTournamentId(),c=document.getElementById('TL');
+        if(!ts||!ts.length){c.innerHTML='<div class="empty-state" style="grid-column:span 3"><div class="empty-icon">🏆</div><p class="empty-text">Chưa có giải đấu</p><p style="color:var(--text-muted);font-size:.85rem;margin-top:8px">Bấm "Tạo giải đấu mới" để bắt đầu</p></div>';return;}
+        c.innerHTML=ts.map(t=>`<div class="t-card ${t.id==at?'sel':''} ${!t.isActive?'off':''}">
+            <div class="tn">${t.name}</div><div class="td">${t.description||'Không có mô tả'}</div>
+            <div class="tm"><span>📊 ${t.predictionType==='Score'?'Tỉ số':t.predictionType==='Result'?'T/H/T':'Cả hai'}</span><span>👥 ${t.memberCount}</span><span>⚽ ${t.matchCount} trận</span></div>
+            <div class="t-acts">
+                <button class="btn btn-primary btn-sm" onclick="goCfg(${t.id})">⚙️ Cấu hình</button>
+                ${t.id!=at?`<button class="btn btn-success btn-sm" onclick="sw(${t.id})">🔄 Chọn</button>`:''}
+                <button class="btn btn-outline btn-sm" onclick="tog(${t.id},${t.isActive})">${t.isActive?'🔒 Đóng':'🔓 Mở'}</button>
+            </div></div>`).join('');
+    }catch(e){showToast('Lỗi','error');}
+}
+
+async function renderCfg(){
+    const m=document.getElementById('M');
+    m.innerHTML=`<div class="bk" onclick="goList()">← Danh sách giải đấu</div>
+        <div class="page-header"><div><h1 class="page-title" id="CT">⚙️ Cấu hình</h1><p class="page-subtitle">Loại dự đoán, vòng đấu & điểm số</p></div><button class="btn btn-primary" onclick="saveCfg()">💾 Lưu thay đổi</button></div>
+        <div class="cfg-grid">
+            <div class="cfg-card"><h3>🔮 Loại dự đoán</h3>
+                <label class="po" onclick="sp('Score')"><input type="radio" name="pt" value="Score"><div class="dot"></div><div class="ti"><h4>📊 Tỉ số</h4><p>Nhập tỉ số chính xác</p></div></label>
+                <label class="po" onclick="sp('Result')"><input type="radio" name="pt" value="Result"><div class="dot"></div><div class="ti"><h4>🎯 Thắng/Hòa/Thua</h4><p>Chọn kết quả T/H/T</p></div></label>
+                <label class="po" onclick="sp('Both')"><input type="radio" name="pt" value="Both"><div class="dot"></div><div class="ti"><h4>⚡ Cả hai</h4><p>Tùy chọn cho mỗi trận</p></div></label>
+                <hr style="border-color:var(--border);margin:12px 0">
+                <h3 style="margin-bottom:10px">🎰 Cách tính điểm</h3>
+                <label class="po" onclick="sm('Standard')"><input type="radio" name="sm" value="Standard"><div class="dot"></div><div class="ti"><h4>⚖️ Standard</h4><p>Đúng: +Xđ | Sai: -Xđ theo vòng</p></div></label>
+                <label class="po" onclick="sm('SharedPool')"><input type="radio" name="sm" value="SharedPool"><div class="dot"></div><div class="ti"><h4>🎰 Shared Pool</h4><p>Pool = N×Xđ, chia đều người đúng, trừ đều người sai</p></div></label>
+            </div>
+            <div class="cfg-card"><h3>⭐ Vòng đấu & Điểm số</h3><div id="RL"><div class="loading-overlay"><div class="spinner"></div></div></div>
+                <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
+                    <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px">➕ Thêm vòng đấu mới:</p>
+                    <div class="add-round-row">
+                        <input type="text" class="form-input" id="arName" placeholder="Tên vòng" style="flex:1">
+                        <input type="text" class="form-input" id="arShort" placeholder="Mã" style="width:60px">
+                        <input type="number" class="form-input" id="arPts" placeholder="Đ" min="1" value="1" style="width:55px">
+                        <button class="btn btn-success btn-sm" onclick="addRound()">➕</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="member-card">
+            <h3>👥 Thành viên giải đấu <span class="member-count" id="memberCount">0</span></h3>
+            <div class="member-search"><input type="text" class="form-input" id="memberSearch" placeholder="🔍 Tìm thành viên..." oninput="filterMembers()"></div>
+            <div class="member-list" id="memberList"><div class="loading-overlay"><div class="spinner"></div></div></div>
+            <div id="memberLocked" style="display:none;padding:12px;text-align:center;color:var(--warning);background:var(--warning-bg);border-radius:var(--radius-sm);margin-top:8px;font-size:.85rem;font-weight:600">
+                🔒 Giải đấu đã đóng/kết thúc - Không thể thêm/xóa thành viên
+            </div>
+            <div class="add-member-row" id="addMemberRow">
+                <select class="form-select" id="addMemberSelect"><option value="">-- Chọn user để thêm --</option></select>
+                <button class="btn btn-success btn-sm" onclick="addMember()">➕ Thêm</button>
+                <button class="btn btn-primary btn-sm add-all-btn" onclick="addAllMembers()">👥 Thêm tất cả</button>
+            </div>
+        </div>
+        <div class="card"><div class="card-header"><h3 class="card-title">✏️ Thông tin giải đấu</h3></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div class="form-group"><label class="form-label">Tên</label><input type="text" class="form-input" id="eName"></div>
+                <div class="form-group"><label class="form-label">Mô tả</label><input type="text" class="form-input" id="eDesc"></div>
+                <div class="form-group"><label class="form-label">Bắt đầu</label><input type="date" class="form-input" id="eStart"></div>
+                <div class="form-group"><label class="form-label">Kết thúc</label><input type="date" class="form-input" id="eEnd"></div>
+            </div>
+        </div>`;
+    try{
+        const t=await Api.get('/api/tournament/'+cfgId);
+        document.getElementById('CT').textContent='⚙️ '+t.name;
+        document.getElementById('eName').value=t.name;
+        document.getElementById('eDesc').value=t.description||'';
+        document.getElementById('eStart').value=t.startDate?.substring(0,10);
+        document.getElementById('eEnd').value=t.endDate?.substring(0,10);
+        sp(t.predictionType);
+        sm(t.pointCalculationMethod||'Standard');
+        renderRounds(t.rounds||[]);
+        // Determine if tournament is locked (closed or past end date)
+        const isExpired=new Date(t.endDate)<new Date();
+        isTournamentLocked=!t.isActive||isExpired;
+        // Show/hide member controls
+        document.getElementById('addMemberRow').style.display=isTournamentLocked?'none':'flex';
+        document.getElementById('memberLocked').style.display=isTournamentLocked?'block':'none';
+        // Load members
+        currentMembers=t.members||[];
+        renderMembers();
+        loadAvailableUsers();
+    }catch(e){showToast('Lỗi tải cấu hình','error');}
+}
+
+function renderRounds(rounds){
+    const sorted=[...rounds].sort((a,b)=>a.sortOrder-b.sortOrder);
+    document.getElementById('RL').innerHTML=sorted.length?sorted.map(r=>`<div class="rr">
+        <span class="rs">${r.shortName}</span>
+        <span class="rn">${r.name}</span>
+        <span style="font-size:.75rem;color:var(--text-muted)">Đúng =</span>
+        <input type="number" min="0" max="100" class="form-input ri" id="rp_${r.id}" value="${r.pointsForCorrect}" data-id="${r.id}" data-orig="${r.pointsForCorrect}">
+        <span style="font-size:.8rem;font-weight:600;color:var(--accent-light)">đ</span>
+        <button class="btn btn-danger btn-sm" onclick="delRound(${r.id})" title="Xóa vòng" style="padding:4px 8px;font-size:.75rem">🗑️</button>
+    </div>`).join(''):'<p style="color:var(--text-muted);font-size:.85rem">Chưa có vòng đấu. Thêm bên dưới.</p>';
+}
+
+function sp(t){document.querySelectorAll('.po input[name=pt]').forEach(r=>{const e=r.closest('.po');r.value===t?(e.classList.add('sel'),r.checked=true):(e.classList.remove('sel'),r.checked=false)})}
+function sm(t){document.querySelectorAll('.po input[name=sm]').forEach(r=>{const e=r.closest('.po');r.value===t?(e.classList.add('sel'),r.checked=true):(e.classList.remove('sel'),r.checked=false)})}
+
+async function saveCfg(){
+    try{
+        await Api.put('/api/tournament/'+cfgId,{
+            name:document.getElementById('eName').value,
+            description:document.getElementById('eDesc').value,
+            predictionType:document.querySelector('input[name=pt]:checked')?.value,
+            pointCalculationMethod:document.querySelector('input[name=sm]:checked')?.value||'Standard',
+            startDate:new Date(document.getElementById('eStart').value).toISOString(),
+            endDate:new Date(document.getElementById('eEnd').value).toISOString()
+        });
+        for(const i of document.querySelectorAll('.ri'))if(parseInt(i.value)!==parseInt(i.dataset.orig))await Api.put(`/api/tournament/${cfgId}/rounds/${i.dataset.id}`,{pointsForCorrect:parseInt(i.value)});
+        showToast('Lưu thành công!','success');renderCfg();
+    }catch(e){showToast(e.message,'error');}
+}
+
+async function addRound(){
+    const name=document.getElementById('arName').value.trim(),short=document.getElementById('arShort').value.trim()||name.substring(0,5).toUpperCase(),pts=parseInt(document.getElementById('arPts').value)||1;
+    if(!name){showToast('Nhập tên vòng đấu','error');return;}
+    const existing=document.querySelectorAll('.rr').length;
+    try{
+        await Api.post(`/api/tournament/${cfgId}/rounds`,{name,shortName:short,pointsForCorrect:pts,sortOrder:existing+1});
+        showToast('Thêm vòng đấu thành công','success');
+        document.getElementById('arName').value='';document.getElementById('arShort').value='';document.getElementById('arPts').value='1';
+        renderCfg();
+    }catch(e){showToast(e.message,'error');}
+}
+
+async function delRound(rid){
+    if(!confirm('Xóa vòng đấu này?'))return;
+    try{await Api.delete(`/api/tournament/${cfgId}/rounds/${rid}`);showToast('Đã xóa','success');renderCfg();}
+    catch(e){showToast(e.message,'error');}
+}
+
+// ===== MEMBER MANAGEMENT =====
+let currentMembers=[];
+let allSystemUsers=[];
+let isTournamentLocked=false;
+
+function renderMembers(){
+    const q=(document.getElementById('memberSearch')?.value||'').toLowerCase();
+    const filtered=currentMembers.filter(m=>!q||(m.userDisplayName||'').toLowerCase().includes(q));
+    document.getElementById('memberCount').textContent=currentMembers.length+' người';
+    if(!currentMembers.length){
+        document.getElementById('memberList').innerHTML='<div class="member-empty">📭 Chưa có thành viên nào.<br><span style="font-size:.75rem">Dùng dropdown bên dưới để thêm.</span></div>';
+        return;
+    }
+    if(!filtered.length){
+        document.getElementById('memberList').innerHTML='<div class="member-empty">Không tìm thấy thành viên phù hợp</div>';
+        return;
+    }
+    document.getElementById('memberList').innerHTML=filtered.map(m=>{
+        const initial=(m.userDisplayName||'?').charAt(0).toUpperCase();
+        const joined=m.joinedAt?new Date(m.joinedAt).toLocaleDateString('vi-VN'):'';
+        const removeBtn=isTournamentLocked?'':`<button class="btn btn-danger btn-sm" onclick="removeMember(${m.userId},'${(m.userDisplayName||'').replace(/'/g,"\\\'")}')" style="padding:4px 8px;font-size:.75rem" title="Xóa khỏi giải">🗑️</button>`;
+        return `<div class="member-row">
+            <div class="member-avatar">${initial}</div>
+            <div class="member-info">
+                <div class="member-name">${m.userDisplayName||'User #'+m.userId}</div>
+                <div class="member-meta">ID: ${m.userId} · ${m.missedMatchPolicy==='AllWrong'?'Bỏ lỡ = Sai hết':'Bỏ lỡ = '+m.missedMatchPercentage+'%'}</div>
+            </div>
+            <span class="member-joined">${joined}</span>
+            ${removeBtn}
+        </div>`;
+    }).join('');
+}
+
+function filterMembers(){renderMembers();}
+
+async function loadAvailableUsers(){
+    try{
+        allSystemUsers=await Api.get('/api/admin/users');
+        updateAddMemberDropdown();
+    }catch(e){}
+}
+
+function updateAddMemberDropdown(){
+    const memberUserIds=new Set(currentMembers.map(m=>m.userId));
+    const available=allSystemUsers.filter(u=>u.isActive&&!memberUserIds.has(u.id));
+    const sel=document.getElementById('addMemberSelect');
+    sel.innerHTML='<option value="">-- Chọn user để thêm ('+available.length+' khả dụng) --</option>'+
+        available.map(u=>`<option value="${u.id}">${u.displayName} (${u.username})</option>`).join('');
+}
+
+async function addMember(){
+    const sel=document.getElementById('addMemberSelect');
+    const userId=parseInt(sel.value);
+    if(!userId){showToast('Chọn user cần thêm','error');return;}
+    try{
+        await Api.post(`/api/tournament/${cfgId}/members`,{userId,missedMatchPolicy:'AllWrong',missedMatchPercentage:0});
+        showToast('Đã thêm thành viên','success');
+        renderCfg();
+    }catch(e){showToast(e.message,'error');}
+}
+
+async function addAllMembers(){
+    const memberUserIds=new Set(currentMembers.map(m=>m.userId));
+    const available=allSystemUsers.filter(u=>u.isActive&&!memberUserIds.has(u.id));
+    if(!available.length){showToast('Không còn user nào để thêm','info');return;}
+    if(!confirm(`Thêm tất cả ${available.length} user vào giải đấu?`))return;
+    let added=0;
+    for(const u of available){
+        try{
+            await Api.post(`/api/tournament/${cfgId}/members`,{userId:u.id,missedMatchPolicy:'AllWrong',missedMatchPercentage:0});
+            added++;
+        }catch(e){}
+    }
+    showToast(`Đã thêm ${added}/${available.length} thành viên`,'success');
+    renderCfg();
+}
+
+async function removeMember(userId,name){
+    if(!confirm(`Xóa "${name}" khỏi giải đấu?`))return;
+    try{
+        await Api.delete(`/api/tournament/${cfgId}/members/${userId}`);
+        showToast('Đã xóa thành viên','success');
+        renderCfg();
+    }catch(e){showToast(e.message,'error');}
+}
+
+function goCfg(id){cfgId=id;view='config';render();}
+function goList(){view='list';render();}
+function sw(id){setActiveTournamentId(id);showToast('Đã chuyển giải đấu','success');renderList();}
+async function tog(id,on){if(!confirm(on?'Đóng giải đấu?':'Mở lại?'))return;try{await Api.put('/api/tournament/'+id,{isActive:!on});showToast('OK','success');renderList();}catch(e){showToast(e.message,'error');}}
+function openC(){document.getElementById('cForm').reset();document.getElementById('createModal').classList.add('active');}
+function closeC(){document.getElementById('createModal').classList.remove('active');}
+
+document.getElementById('cForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    try{
+        const tpl=document.getElementById('cTemplate').value;
+        const res=await Api.post('/api/tournament',{name:document.getElementById('cName').value,description:document.getElementById('cDesc').value,predictionType:document.getElementById('cType').value,pointCalculationMethod:document.getElementById('cScoring').value,startDate:new Date(document.getElementById('cStart').value).toISOString(),endDate:new Date(document.getElementById('cEnd').value).toISOString()});
+        // Delete default rounds then create from template
+        if(tpl!=='wc48'){
+            const rounds=await Api.get(`/api/tournament/${res.id}/rounds`);
+            for(const r of rounds)await Api.delete(`/api/tournament/${res.id}/rounds/${r.id}`);
+            for(const r of TEMPLATES[tpl])await Api.post(`/api/tournament/${res.id}/rounds`,{name:r.n,shortName:r.s,pointsForCorrect:r.p,sortOrder:r.o});
+        }
+        showToast('Tạo giải đấu thành công!','success');closeC();setActiveTournamentId(res.id);goCfg(res.id);
+    }catch(e){showToast(e.message,'error');}
+});
+</script>
+</body>
+</html>

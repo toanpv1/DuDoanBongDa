@@ -1,0 +1,77 @@
+{
+  "Files": [
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\admin\\dashboard.html",
+      "PackagePath": "staticwebassets\\admin\\dashboard.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\admin\\matches.html",
+      "PackagePath": "staticwebassets\\admin\\matches.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\admin\\results.html",
+      "PackagePath": "staticwebassets\\admin\\results.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\admin\\tournament.html",
+      "PackagePath": "staticwebassets\\admin\\tournament.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\admin\\users.html",
+      "PackagePath": "staticwebassets\\admin\\users.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\css\\style.css",
+      "PackagePath": "staticwebassets\\css\\style.css"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\history.html",
+      "PackagePath": "staticwebassets\\history.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\index.html",
+      "PackagePath": "staticwebassets\\index.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\js\\app.js",
+      "PackagePath": "staticwebassets\\js\\app.js"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\leaderboard.html",
+      "PackagePath": "staticwebassets\\leaderboard.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\login.html",
+      "PackagePath": "staticwebassets\\login.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\predictions.html",
+      "PackagePath": "staticwebassets\\predictions.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\statistics.html",
+      "PackagePath": "staticwebassets\\statistics.html"
+    },
+    {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\stats.html",
+      "PackagePath": "staticwebassets\\stats.html"
+    },
+    {
+      "Id": "obj\\Release\\net8.0\\staticwebassets\\msbuild.WorldCupPredictor.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj\\Release\\net8.0\\staticwebassets\\msbuild.build.WorldCupPredictor.props",
+      "PackagePath": "build\\WorldCupPredictor.props"
+    },
+    {
+      "Id": "obj\\Release\\net8.0\\staticwebassets\\msbuild.buildMultiTargeting.WorldCupPredictor.props",
+      "PackagePath": "buildMultiTargeting\\WorldCupPredictor.props"
+    },
+    {
+      "Id": "obj\\Release\\net8.0\\staticwebassets\\msbuild.buildTransitive.WorldCupPredictor.props",
+      "PackagePath": "buildTransitive\\WorldCupPredictor.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

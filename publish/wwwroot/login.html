@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Predictor</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-card">
+            <div style="text-align:center;font-size:3rem;margin-bottom:8px">⚽</div>
+            <h1 class="login-title">Predictor</h1>
+            <p class="login-subtitle">Vui chơi có thưởng</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label">Tên đăng nhập</label>
+                    <input type="text" class="form-input" id="username" placeholder="Nhập tên đăng nhập" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mật khẩu</label>
+                    <input type="password" class="form-input" id="password" placeholder="Nhập mật khẩu" required autocomplete="current-password">
+                </div>
+                <div id="loginError" style="color:var(--danger);font-size:0.85rem;margin-bottom:8px;display:none"></div>
+                <button type="submit" class="btn btn-primary login-btn" id="loginBtn">🔐 Đăng nhập</button>
+            </form>
+        </div>
+    </div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (Api.isLoggedIn()) window.location.href = '/index.html';
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const errDiv = document.getElementById('loginError');
+            btn.disabled = true;
+            btn.textContent = 'Đang đăng nhập...';
+            errDiv.style.display = 'none';
+
+            try {
+                const data = await Api.post('/api/auth/login', {
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                });
+                Api.setAuth(data);
+                showToast('Đăng nhập thành công!', 'success');
+                setTimeout(() => window.location.href = '/index.html', 500);
+            } catch (err) {
+                errDiv.textContent = err.message;
+                errDiv.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🔐 Đăng nhập';
+            }
+        });
+    </script>
+</body>
+</html>

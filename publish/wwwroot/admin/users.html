@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Quản lý thành viên</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header"><h3 class="modal-title" id="modalTitle">Thêm thành viên</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <form id="userForm">
+                <input type="hidden" id="editUserId">
+                <div class="form-group"><label class="form-label">Tên đăng nhập</label><input type="text" class="form-input" id="formUsername" required></div>
+                <div class="form-group" id="pwdGroup"><label class="form-label">Mật khẩu</label><input type="password" class="form-input" id="formPassword"></div>
+                <div class="form-group"><label class="form-label">Tên hiển thị</label><input type="text" class="form-input" id="formDisplayName" required></div>
+                <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="formEmail"></div>
+                <div class="form-group"><label class="form-label">Vai trò</label><select class="form-select" id="formRole"><option value="Member">Thành viên</option><option value="Admin">Admin</option><option value="SuperAdmin">Super Admin</option></select></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">Hủy</button>
+                    <button type="submit" class="btn btn-primary">💾 Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="modal-overlay" id="resetModal">
+        <div class="modal">
+            <div class="modal-header"><h3 class="modal-title">Reset mật khẩu</h3><button class="modal-close" onclick="document.getElementById('resetModal').classList.remove('active')">×</button></div>
+            <form id="resetForm">
+                <input type="hidden" id="resetUserId">
+                <div class="form-group">
+                    <label class="form-label">Mật khẩu mới (tự động tạo hoặc tự nhập)</label>
+                    <input type="text" class="form-input" id="resetPassword" required minlength="6">
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+                    <button type="button" class="btn btn-outline" onclick="document.getElementById('resetModal').classList.remove('active')">Hủy</button>
+                    <button type="submit" class="btn btn-primary">🔑 Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAdmin()) throw 'redirect';
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('admin-users') + `
+        <main class="main-content">
+            <div class="page-header">
+                <div><h1 class="page-title">👥 Quản lý thành viên</h1></div>
+                <button class="btn btn-primary" onclick="openCreateModal()">➕ Thêm thành viên</button>
+            </div>
+            <div style="margin-bottom:12px"><input type="text" class="form-input" id="searchBox" placeholder="🔍 Tìm theo tên, username..." oninput="filterUsers()"></div>
+            <div class="card"><div id="userTable"><div class="loading-overlay"><div class="spinner"></div></div></div></div>
+        </main>`;
+        loadUsers();
+
+        let allUsers = [];
+        async function loadUsers() {
+            allUsers = await Api.get('/api/admin/users');
+            filterUsers();
+        }
+        function filterUsers() {
+            const q = (document.getElementById('searchBox')?.value || '').toLowerCase();
+            const users = allUsers.filter(u => !q || u.username.toLowerCase().includes(q) || u.displayName.toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q));
+            document.getElementById('userTable').innerHTML = `<div class="table-wrapper"><table>
+                <thead><tr><th>ID</th><th>Username</th><th>Tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                <tbody>${users.map(u => `<tr>
+                    <td>${u.id}</td><td>${u.username}</td><td>${u.displayName}</td><td>${u.email || '-'}</td>
+                    <td><span class="badge" style="background:rgba(99,102,241,0.15);color:var(--accent-light)">${u.role}</span></td>
+                    <td><span class="badge ${u.isActive ? 'badge-correct' : 'badge-wrong'}">${u.isActive ? 'Hoạt động' : 'Vô hiệu'}</span></td>
+                    <td style="display:flex;gap:4px">
+                        <button class="btn btn-outline btn-sm" onclick="openEditModal(${u.id},'${u.username}','${u.displayName}','${u.email||''}','${u.role}')">✏️</button>
+                        <button class="btn btn-outline btn-sm" onclick="openResetModal(${u.id})">🔑</button>
+                        <button class="btn btn-danger btn-sm" onclick="toggleUser(${u.id},${u.isActive})">${u.isActive ? '🚫' : '✅'}</button>
+                    </td>
+                </tr>`).join('')}</tbody></table></div>`;
+        }
+
+        function openCreateModal() {
+            document.getElementById('modalTitle').textContent = 'Thêm thành viên';
+            document.getElementById('editUserId').value = '';
+            document.getElementById('userForm').reset();
+            document.getElementById('formUsername').disabled = false;
+            document.getElementById('formUsername').style.opacity = '1';
+            document.getElementById('pwdGroup').style.display = 'block';
+            document.getElementById('formPassword').required = true;
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function openEditModal(id, username, displayName, email, role) {
+            document.getElementById('modalTitle').textContent = 'Sửa thành viên';
+            document.getElementById('editUserId').value = id;
+            document.getElementById('formUsername').value = username;
+            document.getElementById('formUsername').disabled = true;
+            document.getElementById('formUsername').style.opacity = '0.6';
+            document.getElementById('formDisplayName').value = displayName;
+            document.getElementById('formEmail').value = email;
+            document.getElementById('formRole').value = role;
+            document.getElementById('pwdGroup').style.display = 'none';
+            document.getElementById('formPassword').required = false;
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('userModal').classList.remove('active'); }
+
+        function openResetModal(id) {
+            document.getElementById('resetUserId').value = id;
+            document.getElementById('resetForm').reset();
+            const randomPwd = Math.random().toString(36).slice(-6).toUpperCase();
+            document.getElementById('resetPassword').value = randomPwd;
+            document.getElementById('resetModal').classList.add('active');
+        }
+
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editUserId').value;
+            try {
+                if (id) {
+                    await Api.put(`/api/admin/users/${id}`, { displayName: document.getElementById('formDisplayName').value, email: document.getElementById('formEmail').value, role: document.getElementById('formRole').value });
+                } else {
+                    await Api.post('/api/admin/users', { username: document.getElementById('formUsername').value, password: document.getElementById('formPassword').value, displayName: document.getElementById('formDisplayName').value, email: document.getElementById('formEmail').value, role: document.getElementById('formRole').value });
+                }
+                showToast('Lưu thành công!', 'success');
+                closeModal();
+                loadUsers();
+            } catch (err) { showToast(err.message, 'error'); }
+        });
+
+        document.getElementById('resetForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('resetUserId').value;
+            const pwd = document.getElementById('resetPassword').value;
+            try {
+                await Api.post(`/api/admin/users/${id}/reset-password`, { newPassword: pwd });
+                showToast('Reset mật khẩu thành công!', 'success');
+                document.getElementById('resetModal').classList.remove('active');
+                
+                // Hiển thị hộp thoại để admin dễ copy
+                setTimeout(() => {
+                    prompt('Reset thành công! Vui lòng copy mật khẩu mới dưới đây để gửi cho user:', pwd);
+                }, 100);
+            } catch (err) { showToast(err.message, 'error'); }
+        });
+
+        async function toggleUser(id, isActive) {
+            if (!confirm(isActive ? 'Vô hiệu hóa user này?' : 'Kích hoạt lại user?')) return;
+            try {
+                if (isActive) await Api.delete(`/api/admin/users/${id}`);
+                else await Api.put(`/api/admin/users/${id}`, { isActive: true });
+                loadUsers();
+                showToast('Cập nhật thành công', 'success');
+            } catch (err) { showToast(err.message, 'error'); }
+        }
+    </script>
+</body>
+</html>

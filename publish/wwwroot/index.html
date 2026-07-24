@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tổng quan - Predictor</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="app-wrapper" id="app"></div>
+    <script src="/js/app.js"></script>
+    <script>
+        if (!requireAuth()) throw 'redirect';
+
+        const app = document.getElementById('app');
+        app.innerHTML = buildSidebar('dashboard') + `
+        <main class="main-content">
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">🏠 Tổng quan</h1>
+                    <p class="page-subtitle">Dự đoán nội bộ</p>
+                </div>
+            </div>
+            <div class="stats-grid" id="statsGrid">
+                <div class="loading-overlay"><div class="spinner"></div> Đang tải...</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px" id="mainGrid">
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">⚡ Trận sắp tới</h3></div>
+                    <div id="upcomingMatches"><div class="loading-overlay"><div class="spinner"></div></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3 class="card-title">🏆 BXH nhanh</h3></div>
+                    <div id="miniLeaderboard"><div class="loading-overlay"><div class="spinner"></div></div></div>
+                </div>
+            </div>
+        </main>`;
+
+        loadDashboard();
+
+        async function loadDashboard() {
+            const tid = getActiveTournamentId();
+            try {
+                const [stats, upcoming, leaderboard] = await Promise.all([
+                    Api.get(`/api/leaderboard/my-stats/${tid}`).catch(() => null),
+                    Api.get(`/api/match/upcoming?tournamentId=${tid}&count=5`).catch(() => []),
+                    Api.get(`/api/leaderboard/${tid}`).catch(() => [])
+                ]);
+
+                // Stats
+                if (stats) {
+                    document.getElementById('statsGrid').innerHTML = `
+                        <div class="stat-card"><div class="stat-icon purple">🏆</div><div><div class="stat-value">${stats.totalPoints}</div><div class="stat-label">Tổng điểm</div></div></div>
+                        <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value">${stats.correctPredictions}</div><div class="stat-label">Dự đoán đúng</div></div></div>
+                        <div class="stat-card"><div class="stat-icon red">❌</div><div><div class="stat-value">${stats.wrongPredictions}</div><div class="stat-label">Dự đoán sai</div></div></div>
+                        <div class="stat-card"><div class="stat-icon yellow">📊</div><div><div class="stat-value">${stats.accuracy}%</div><div class="stat-label">Tỷ lệ chính xác</div></div></div>
+                    `;
+                } else {
+                    document.getElementById('statsGrid').innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><p>Chưa có dữ liệu thống kê</p></div>';
+                }
+
+                // Upcoming
+                const upDiv = document.getElementById('upcomingMatches');
+                if (upcoming && upcoming.length > 0) {
+                    upDiv.innerHTML = upcoming.map(m => `
+                        <div class="match-card" style="padding:14px;margin-bottom:8px">
+                            <div class="match-meta">
+                                <span class="match-round">${m.roundName}</span>
+                                <span>${formatDateTime(m.matchDate)}</span>
+                            </div>
+                            <div class="match-teams" style="margin:8px 0;gap:12px">
+                                <div class="match-team"><span class="flag" style="font-size:1.3rem">${m.homeFlag||'🏳️'}</span><span class="team-name" style="font-size:0.8rem">${m.homeTeam}</span></div>
+                                <span class="match-vs" style="font-size:0.9rem">VS</span>
+                                <div class="match-team"><span class="flag" style="font-size:1.3rem">${m.awayFlag||'🏳️'}</span><span class="team-name" style="font-size:0.8rem">${m.awayTeam}</span></div>
+                            </div>
+                            ${Api.isAdmin() ? '' : (m.myPrediction ? `<div style="text-align:center;font-size:0.8rem;color:var(--success)">✅ Đã dự đoán: ${m.myPrediction.predictedHomeScore!=null ? m.myPrediction.predictedHomeScore+' - '+m.myPrediction.predictedAwayScore : ''}${m.myPrediction.predictedResult ? (m.myPrediction.predictedHomeScore!=null ? ' (' : '')+(m.myPrediction.predictedResult==='Home'?'🏆 '+m.homeTeam+' thắng':m.myPrediction.predictedResult==='Away'?'🏆 '+m.awayTeam+' thắng':'🤝 Hòa')+(m.myPrediction.predictedHomeScore!=null ? ')' : '') : ''}</div>` : 
+                            m.isPredictionOpen ? `<div style="text-align:center"><a href="/predictions.html" class="btn btn-primary btn-sm">Dự đoán ngay</a></div>` :
+                            `<div style="text-align:center;font-size:0.8rem;color:var(--danger)">⏰ Hết hạn dự đoán</div>`)}
+                        </div>
+                    `).join('');
+                } else {
+                    upDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p class="empty-text">Không có trận đấu sắp tới</p></div>';
+                }
+
+                // Mini Leaderboard
+                const lbDiv = document.getElementById('miniLeaderboard');
+                const userId = Api.getUser().userId;
+                if (leaderboard && leaderboard.length > 0) {
+                    lbDiv.innerHTML = `<div class="table-wrapper"><table>
+                        <thead><tr><th>#</th><th>Thành viên</th><th>Điểm</th><th>Tỷ lệ</th></tr></thead>
+                        <tbody>${leaderboard.slice(0, 10).map(e => `
+                            <tr class="${e.userId == userId ? 'highlight' : ''}">
+                                <td><span class="rank-badge ${e.rank <= 3 ? 'rank-' + e.rank : ''}" style="${e.rank > 3 ? 'background:var(--bg-secondary);color:var(--text-muted)' : ''}">${e.rank}</span></td>
+                                <td style="font-weight:${e.userId == userId ? '700' : '400'}">${e.displayName} ${e.userId == userId ? '⭐' : ''}</td>
+                                <td><span class="points-badge">${e.totalPoints}</span></td>
+                                <td>${e.accuracy}%</td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table></div>
+                    <div style="text-align:center;margin-top:12px"><a href="/leaderboard.html" class="btn btn-outline btn-sm">Xem đầy đủ →</a></div>`;
+                } else {
+                    lbDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div><p class="empty-text">Chưa có bảng xếp hạng</p></div>';
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi tải dữ liệu', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
