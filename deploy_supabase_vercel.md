@@ -8,6 +8,16 @@ Tài liệu này hướng dẫn chi tiết cách kết nối Cơ sở dữ liệ
 
 Do ứng dụng **DuDoanBongDa** được phát triển trên nền tảng **ASP.NET Core 8.0 (C#)** kết hợp với Giao diện Web (HTML/JS/CSS), mô hình triển khai tối ưu nhất bao gồm:
 
+```text
+[Người dùng] 
+       │
+       ▼
+⚡ [Vercel (Frontend UI)] ────(Gọi API)────► ⚙️ [Render (Backend .NET 8 API)]
+                                                      │
+                                                      ▼
+                                            🗄️ [Supabase (PostgreSQL DB)]
+```
+
 ```mermaid
 graph TD
     User["🌐 Người dùng (Trình duyệt)"] -->|Truy cập Website| Vercel["⚡ Vercel (Frontend UI)\nhttps://dudoanbongda.vercel.app"]
