@@ -1,0 +1,24 @@
+# .NET build outputs
+bin/
+obj/
+publish/
+
+# Visual Studio & IDE settings
+.vs/
+.idea/
+*.user
+*.userosscache
+
+# Database & binary files
+*.db
+*.db-wal
+*.db-shm
+*.exe
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
