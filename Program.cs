@@ -24,7 +24,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         {
             connectionString = connectionString.TrimEnd(';') + ";SSL Mode=Require;Trust Server Certificate=true;";
         }
-        options.UseNpgsql(connectionString);
+        options.UseNpgsql(connectionString, npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null);
+        });
     }
     else
     {

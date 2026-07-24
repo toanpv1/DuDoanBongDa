@@ -30,9 +30,10 @@ namespace WorldCupPredictor.Controllers
             }
             catch (Exception ex)
             {
+                var errDetail = ex.InnerException != null ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
                 return StatusCode(500, new { 
-                    message = $"Lỗi đăng nhập: {ex.Message}", 
-                    detail = ex.InnerException?.Message ?? ex.StackTrace 
+                    message = $"Lỗi đăng nhập: {errDetail}", 
+                    detail = ex.StackTrace 
                 });
             }
         }
