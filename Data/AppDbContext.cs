@@ -20,6 +20,26 @@ namespace WorldCupPredictor.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Convert entity table and column names to snake_case for PostgreSQL / Supabase compatibility
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                var tableName = entity.GetTableName();
+                if (!string.IsNullOrEmpty(tableName))
+                {
+                    entity.SetTableName(ToSnakeCase(tableName));
+                }
+
+                foreach (var property in entity.GetProperties())
+                {
+                    var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(entity.GetTableName()!, entity.GetSchema());
+                    var columnName = property.GetColumnName(storeObject);
+                    if (!string.IsNullOrEmpty(columnName))
+                    {
+                        property.SetColumnName(ToSnakeCase(columnName));
+                    }
+                }
+            }
+
             // Unique constraints
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
@@ -48,6 +68,12 @@ namespace WorldCupPredictor.Data
                 IsActive = true,
                 CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });
+        }
+
+        private static string ToSnakeCase(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+            return System.Text.RegularExpressions.Regex.Replace(input, @"([a-z0-9])([A-Z])", "$1_$2").ToLower();
         }
     }
 }
