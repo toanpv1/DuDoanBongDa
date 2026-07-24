@@ -7,6 +7,9 @@ using WorldCupPredictor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Disable reloadOnChange to prevent Linux Docker FileWatcher crash (status 139)
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
