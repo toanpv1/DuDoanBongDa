@@ -20,13 +20,13 @@ namespace WorldCupPredictor.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Convert entity table and column names to snake_case for PostgreSQL / Supabase compatibility
+            // Standardize ALL entity table and column names to lowercase for 100% cross-platform compatibility (PostgreSQL & SQLite)
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
             {
                 var tableName = entity.GetTableName();
                 if (!string.IsNullOrEmpty(tableName))
                 {
-                    entity.SetTableName(ToSnakeCase(tableName));
+                    entity.SetTableName(tableName.ToLowerInvariant());
                 }
 
                 foreach (var property in entity.GetProperties())
@@ -35,7 +35,7 @@ namespace WorldCupPredictor.Data
                     var columnName = property.GetColumnName(storeObject);
                     if (!string.IsNullOrEmpty(columnName))
                     {
-                        property.SetColumnName(ToSnakeCase(columnName));
+                        property.SetColumnName(columnName.ToLowerInvariant());
                     }
                 }
             }
