@@ -143,11 +143,13 @@ namespace WorldCupPredictor.Services
         public async Task<PersonalStats> GetPersonalStatsAsync(int userId, int tournamentId)
         {
             var completedMatches = await _db.Matches
+                .AsNoTracking()
                 .Include(m => m.Round)
                 .Where(m => m.TournamentId == tournamentId && m.Status == "Completed")
                 .ToListAsync();
 
             var predictions = await _db.Predictions
+                .AsNoTracking()
                 .Include(p => p.Match)
                     .ThenInclude(m => m!.Round)
                 .Where(p => p.UserId == userId && p.Match!.TournamentId == tournamentId)
@@ -162,6 +164,7 @@ namespace WorldCupPredictor.Services
             var accuracy = totalCompleted > 0 ? (double)correct / totalCompleted * 100 : 0;
 
             var rounds = await _db.Rounds
+                .AsNoTracking()
                 .Where(r => r.TournamentId == tournamentId)
                 .OrderBy(r => r.SortOrder)
                 .ToListAsync();
