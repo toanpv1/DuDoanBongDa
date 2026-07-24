@@ -1,9 +1,7 @@
 {
-  "version": 2,
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/wwwroot/$1"
-    }
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/wwwroot/index.html" },
+    { "source": "/:path*", "destination": "/wwwroot/:path*" }
   ]
 }
