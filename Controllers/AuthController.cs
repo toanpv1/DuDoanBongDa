@@ -20,11 +20,21 @@ namespace WorldCupPredictor.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var result = await _authService.LoginAsync(request);
-            if (result == null)
-                return Unauthorized(new { message = "Tên đăng nhập hoặc mật khẩu không đúng" });
+            try
+            {
+                var result = await _authService.LoginAsync(request);
+                if (result == null)
+                    return Unauthorized(new { message = "Tên đăng nhập hoặc mật khẩu không đúng" });
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    message = $"Lỗi đăng nhập: {ex.Message}", 
+                    detail = ex.InnerException?.Message ?? ex.StackTrace 
+                });
+            }
         }
 
         [Authorize]

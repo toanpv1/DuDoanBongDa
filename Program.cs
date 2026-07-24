@@ -69,6 +69,27 @@ var app = builder.Build();
 // Enable CORS FIRST so error responses always contain CORS headers
 app.UseCors("AllowFrontend");
 
+// Global Exception Handler Middleware
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[API Error] {ex}");
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var errObj = new 
+        { 
+            message = $"Lỗi hệ thống: {ex.Message}",
+            detail = ex.InnerException?.Message ?? ex.Message
+        };
+        await context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(errObj));
+    }
+});
+
 // Auto-migrate database safely
 using (var scope = app.Services.CreateScope())
 {
