@@ -18,6 +18,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (!string.IsNullOrEmpty(connectionString) && (connectionString.Contains("Host=") || connectionString.Contains("Server=")))
     {
+        // Auto-append SSL Mode for Supabase PostgreSQL if not specified
+        if (!connectionString.Contains("SSL Mode=", StringComparison.OrdinalIgnoreCase) && 
+            !connectionString.Contains("SslMode=", StringComparison.OrdinalIgnoreCase))
+        {
+            connectionString = connectionString.TrimEnd(';') + ";SSL Mode=Require;Trust Server Certificate=true;";
+        }
         options.UseNpgsql(connectionString);
     }
     else
@@ -60,18 +66,28 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Auto-migrate database
+// Enable CORS FIRST so error responses always contain CORS headers
+app.UseCors("AllowFrontend");
+
+// Auto-migrate database safely
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
-
-    // Enable WAL mode only if SQLite is used
-    if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+    try
     {
-        db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
-        db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000;");
-        db.Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+
+        // Enable WAL mode only if SQLite is used
+        if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+            db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000;");
+            db.Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL;");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Database Init Warning] {ex.Message}");
     }
 }
 
@@ -81,8 +97,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseCors("AllowFrontend");
 
 // Serve frontend static files
 app.UseDefaultFiles();
