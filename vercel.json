@@ -1,12 +1,9 @@
 {
   "version": 2,
-  "name": "dudoanbongda-frontend",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/$1"
+      "src": "/(.*)",
+      "dest": "/wwwroot/$1"
     }
   ]
 }
