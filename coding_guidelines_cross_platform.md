@@ -21,60 +21,43 @@ Tài liệu này cung cấp bảng so sánh kiến trúc triển khai và **bộ
 
 ## 🏗️ 2. Bộ Quy Chuẩn Viết Code (Cross-Platform Coding Requirements)
 
+> [!IMPORTANT]
+> **QUY TẮC CỐT LÕI (RULE #0): CHUẨN HÓA TÊN BẢNG & CỘT VỀ CHỮ THƯỜNG (LOWERCASE) NGAY TỪ NGÀY ĐẦU THIẾT KẾ!**
+> 
+> - **Bài học quan trọng**: SQLite trên Windows KHÔNG phân biệt chữ hoa/thường (nên PascalCase C# như `Users`, `DisplayName` chạy local mượt mà). Tuy nhiên, khi đưa lên PostgreSQL/Supabase trên Linux Cloud, PostgreSQL phân biệt chữ hoa/thường RẤT NGHIÊM NGẶT nếu có ngoặc kép `"Users"`, gây ra các lỗi `42P01: relation "Users" does not exist` hoặc `42703: column u.avatar_url does not exist`.
+> - **Yêu cầu Bắt Buộc Ngay Từ Đầu**:
+>   1. **Khi thiết kế CSDL**: Đặt tên tất cả Bảng và Cột dưới dạng **chữ thường 100%** (ví dụ: `users`, `id`, `username`, `passwordhash`, `displayname`, `email`, `role`, `avatarurl`, `isactive`, `createdat`).
+>   2. **Trong EF Core `AppDbContext.cs`**: Luôn áp dụng tự động `.ToLowerInvariant()` cho tất cả Bảng và Cột ngay trong `OnModelCreating` để ứng dụng tương thích 100% trên mọi loại CSDL mà không phải sửa lại code hay DB sau này:
+>      ```csharp
+>      foreach (var entity in modelBuilder.Model.GetEntityTypes())
+>      {
+>          entity.SetTableName(entity.GetTableName()?.ToLowerInvariant());
+>          foreach (var property in entity.GetProperties())
+>          {
+>              var storeObject = StoreObjectIdentifier.Table(entity.GetTableName()!, entity.GetSchema());
+>              property.SetColumnName(property.GetColumnName(storeObject)?.ToLowerInvariant());
+>          }
+>      }
+>      ```
+
+Để đảm bảo ứng dụng .NET Core chạy không bị lỗi khi chuyển đổi giữa Windows local ➔ Linux ➔ Cloud/Docker, toàn bộ codebase cần tuân thủ các quy tắc vàng sau:
+
 ### 1️⃣ Trừu tượng hóa CSDL (Database Abstraction & Multi-Provider Support)
 * **Quy tắc**: Không hardcode driver hay câu lệnh SQL riêng của 1 loại CSDL (như SQLite `PRAGMA`).
 * **Thực thi**:
-  - Sử dụng Entity Framework Core với khả năng đọc Provider theo chuỗi kết nối:
-  ```csharp
-  var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-  builder.Services.AddDbContext<AppDbContext>(options =>
-  {
-      if (!string.IsNullOrEmpty(connectionString) && (connectionString.Contains("Host=") || connectionString.Contains("Server=")))
-      {
-          if (!connectionString.Contains("SSL Mode=", StringComparison.OrdinalIgnoreCase))
-              connectionString = connectionString.TrimEnd(';') + ";SSL Mode=Require;Trust Server Certificate=true;";
-          
-          options.UseNpgsql(connectionString);
-      }
-      else
-      {
-          options.UseSqlite(connectionString ?? "Data Source=worldcup.db");
-      }
-  });
-  ```
-  - **Tránh SQL thô**: Các câu lệnh PRAGMA hoặc SQL dialect riêng phải được kiểm tra theo Provider.
-
----
+  - Sử dụng Entity Framework Core với khả năng đọc Provider theo chuỗi kết nối.
 
 ### 2️⃣ Quản lý Cấu hình & Bí mật theo Nguyên tắc 12-Factor App
-* **Quy tắc**: **KHÔNG BAO GIỜ** hardcode Passwords, API Keys, hay JWT Keys trong `appsettings.json` hoặc code C#.
-* **Thực thi**:
-  - Đặt giá trị mặc định cho Môi trường Local trong `appsettings.json`.
-  - Trên Production/Cloud, ưu tiên đọc từ **Environment Variables** (trong Linux/Docker dùng 2 dấu gạch dưới `__` thay cho dấu `:` như `ConnectionStrings__DefaultConnection`).
-
----
+* Đọc Passwords/Connection Strings từ Environment Variables (`ConnectionStrings__DefaultConnection`).
 
 ### 3️⃣ Xử lý Đường dẫn File chuẩn Đa hệ điều hành (Path & Case Sensitivity)
-* **Quy tắc**:
-  - Không sử dụng dấu gạch ngược `\` hằng số.
-  - Tên file static (HTML, JS, CSS, Images) phải viết thường toàn bộ (lowercase) để tránh lỗi 404 trên Linux Server.
-* **Thực thi**:
-  - Luôn sử dụng `Path.Combine()` thay vì cộng chuỗi đường dẫn.
-
----
+* Viết thường toàn bộ tên file static và dùng `Path.Combine()`.
 
 ### 4️⃣ Cấu hình CORS & SSL Redirection thích ứng Cloud Reverse Proxy
-* **Quy tắc**:
-  - Đặt `app.UseCors()` ở **ngay sau** `builder.Build()` để mọi phản hồi (kể cả 500 error hay Exception) luôn được đính kèm CORS headers.
-
----
+* Đặt `app.UseCors()` ở **ngay sau** `builder.Build()`.
 
 ### 5️⃣ Lắng nghe Cổng Động (Dynamic Port Binding)
-* **Quy tắc**:
-  - Không hardcode `http://localhost:5000` trong `Program.cs`.
-  - Khai báo lắng nghe tất cả giao diện mạng trong Dockerfile: `ENV ASPNETCORE_URLS=http://+:8080`.
-
----
+* Khai báo lắng nghe tất cả giao diện mạng trong Dockerfile: `ENV ASPNETCORE_URLS=http://+:8080`.
 
 ### 6️⃣ Đóng gói Container hóa (Dockerization)
 * Sử dụng `Dockerfile` đa tầng (Multi-stage build) để đóng gói nhẹ và chạy nhất quán trên mọi môi trường.
