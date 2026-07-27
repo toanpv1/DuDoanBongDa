@@ -7,9 +7,6 @@ using WorldCupPredictor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Disable reloadOnChange to prevent Linux Docker FileWatcher crash (status 139)
-builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
-
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -37,7 +34,30 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
     else
     {
-        options.UseSqlite(connectionString ?? "Data Source=worldcup.db");
+        var sqliteConnStr = connectionString ?? "Data Source=worldcup.db";
+        if (sqliteConnStr.Contains("Data Source=", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = sqliteConnStr.Split('=');
+            if (parts.Length == 2)
+            {
+                var filePath = parts[1].Trim();
+                if (!Path.IsPathRooted(filePath))
+                {
+                    var dataSubfolderFile = Path.Combine(AppContext.BaseDirectory, "data", filePath);
+                    var rootFolderFile = Path.Combine(AppContext.BaseDirectory, filePath);
+
+                    if (File.Exists(dataSubfolderFile))
+                    {
+                        sqliteConnStr = $"Data Source={dataSubfolderFile}";
+                    }
+                    else
+                    {
+                        sqliteConnStr = $"Data Source={rootFolderFile}";
+                    }
+                }
+            }
+        }
+        options.UseSqlite(sqliteConnStr);
     }
 });
 

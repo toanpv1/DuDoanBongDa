@@ -1,5 +1,7 @@
 // ===== API Configuration =====
-const API_BASE = 'https://dudoanbongda-api.onrender.com';
+const API_BASE = (window.location.hostname.includes('vercel.app'))
+    ? 'https://dudoanbongda-api.onrender.com'
+    : '';
 const TOKEN_KEY = 'wcp_token';
 const USER_KEY = 'wcp_user';
 
