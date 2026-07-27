@@ -36,9 +36,12 @@ namespace WorldCupPredictor.Controllers
 
             var matches = await query.OrderBy(m => m.MatchDate).ToListAsync();
             var matchIds = matches.Select(m => m.Id).ToList();
-            var myPredictions = await _db.Predictions
+            var myPredictionsList = await _db.Predictions
                 .Where(p => p.UserId == userId && matchIds.Contains(p.MatchId))
-                .ToDictionaryAsync(p => p.MatchId);
+                .ToListAsync();
+            var myPredictions = myPredictionsList
+                .GroupBy(p => p.MatchId)
+                .ToDictionary(g => g.Key, g => g.First());
 
             var result = matches.Select(m =>
             {
@@ -65,9 +68,12 @@ namespace WorldCupPredictor.Controllers
                 .OrderBy(m => m.MatchDate).Take(count).ToListAsync();
 
             var matchIds = matches.Select(m => m.Id).ToList();
-            var myPredictions = await _db.Predictions
+            var myPredictionsList = await _db.Predictions
                 .Where(p => p.UserId == userId && matchIds.Contains(p.MatchId))
-                .ToDictionaryAsync(p => p.MatchId);
+                .ToListAsync();
+            var myPredictions = myPredictionsList
+                .GroupBy(p => p.MatchId)
+                .ToDictionary(g => g.Key, g => g.First());
 
             var result = matches.Select(m =>
             {
