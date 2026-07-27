@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WorldCupPredictor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+11d5ed3dee9ae97859909fcff72350c0be91a1a5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dc967221af6fb06b066ec55f8bc11fcbba0ade80")]
 [assembly: System.Reflection.AssemblyProductAttribute("WorldCupPredictor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WorldCupPredictor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
