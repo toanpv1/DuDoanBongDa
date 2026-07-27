@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "6NAbU0CI1NTYHzPm0Dk4CsJ9wRN5GsB0Alb+FwhLWxw=",
+  "Hash": "jm0aTfLHT0ij/TCaxEexdQ1IY35woEDRzfi3n+X60Nc=",
   "Source": "WorldCupPredictor",
   "BasePath": "_content/WorldCupPredictor",
   "Mode": "Default",
@@ -186,6 +186,25 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\js\\app.js"
+    },
+    {
+      "Identity": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\js\\chart.js",
+      "SourceId": "WorldCupPredictor",
+      "SourceType": "Discovered",
+      "ContentRoot": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\",
+      "BasePath": "_content/WorldCupPredictor",
+      "RelativePath": "js/chart.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\js\\chart.js"
     },
     {
       "Identity": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\leaderboard.html",

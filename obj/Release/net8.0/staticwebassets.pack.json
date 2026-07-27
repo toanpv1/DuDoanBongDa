@@ -37,6 +37,10 @@
       "PackagePath": "staticwebassets\\js\\app.js"
     },
     {
+      "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\js\\chart.js",
+      "PackagePath": "staticwebassets\\js\\chart.js"
+    },
+    {
       "Id": "D:\\Learn\\NETCORE\\DuDoanBongDa\\Backend\\wwwroot\\leaderboard.html",
       "PackagePath": "staticwebassets\\leaderboard.html"
     },

@@ -2,6 +2,7 @@ D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\WorldCupPredictor.exe
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\appsettings.Development.json
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\appsettings.json
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\appsettings.Production.json
+D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\vercel.json
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\WorldCupPredictor.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\WorldCupPredictor.runtimeconfig.json
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\WorldCupPredictor.pdb
@@ -32,6 +33,8 @@ D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\Microsoft.IdentityModel.Protocols.
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\Microsoft.IdentityModel.Tokens.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\Microsoft.OpenApi.dll
+D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\Npgsql.dll
+D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\Npgsql.EntityFrameworkCore.PostgreSQL.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\RBush.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\SixLabors.Fonts.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\publish\SQLitePCLRaw.batteries_v2.dll

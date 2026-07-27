@@ -304,3 +304,7 @@ D:\Learn\NETCORE\DuDoanBongDa\Backend\obj\Release\net8.0\refint\WorldCupPredicto
 D:\Learn\NETCORE\DuDoanBongDa\Backend\obj\Release\net8.0\WorldCupPredictor.pdb
 D:\Learn\NETCORE\DuDoanBongDa\Backend\obj\Release\net8.0\WorldCupPredictor.genruntimeconfig.cache
 D:\Learn\NETCORE\DuDoanBongDa\Backend\obj\Release\net8.0\ref\WorldCupPredictor.dll
+D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Release\net8.0\vercel.json
+D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Release\net8.0\Npgsql.dll
+D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Release\net8.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
+D:\Learn\NETCORE\DuDoanBongDa\Backend\obj\Release\net8.0\WorldCupPredictor.sourcelink.json

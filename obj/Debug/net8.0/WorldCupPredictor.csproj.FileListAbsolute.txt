@@ -320,3 +320,4 @@ D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Debug\net8.0\Npgsql.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Debug\net8.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
 D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Debug\net8.0\vercel.json
 D:\Learn\NETCORE\DuDoanBongDa\Backend\obj\Debug\net8.0\WorldCupPredictor.sourcelink.json
+D:\Learn\NETCORE\DuDoanBongDa\Backend\bin\Debug\net8.0\publish\vercel.json

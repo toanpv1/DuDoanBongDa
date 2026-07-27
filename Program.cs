@@ -37,7 +37,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
     else
     {
-        options.UseSqlite(connectionString ?? "Data Source=worldcup.db");
+        var sqliteConnStr = connectionString ?? "Data Source=worldcup.db";
+        if (sqliteConnStr.Contains("Data Source=", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = sqliteConnStr.Split('=');
+            if (parts.Length == 2)
+            {
+                var filePath = parts[1].Trim();
+                if (!Path.IsPathRooted(filePath))
+                {
+                    filePath = Path.Combine(AppContext.BaseDirectory, filePath);
+                    sqliteConnStr = $"Data Source={filePath}";
+                }
+            }
+        }
+        options.UseSqlite(sqliteConnStr);
     }
 });
 
